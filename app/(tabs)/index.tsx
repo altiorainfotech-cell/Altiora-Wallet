@@ -20,6 +20,7 @@ export default function Home() {
     networkIndex,
     setNetworkIndex,
     tokens,
+    nfts,
     totalPortfolioValue,
     portfolioChange24h,
     addMockAccount
@@ -131,12 +132,12 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Token List */}
+        {/* List Area */}
         <ScrollView style={styles.tokenList} showsVerticalScrollIndicator={false}>
           <View style={styles.tokenListHeader}>
             <View style={styles.sortButtons}>
               <TouchableOpacity style={styles.sortBtn}>
-                <Text style={styles.sortBtnText}>Popular networks</Text>
+                <Text style={styles.sortBtnText}>{selectedTab === "tokens" ? "Popular networks" : "Top collections"}</Text>
                 <Ionicons name="chevron-down" size={14} color={colors.textDim} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
@@ -148,36 +149,52 @@ export default function Home() {
             </View>
           </View>
 
-          {tokens.map((token) => (
-            <TouchableOpacity
-              key={token.id}
-              style={styles.tokenItem}
-              onPress={() => router.push(`/(modals)/token-detail?tokenId=${token.id}`)}
-            >
-              <View style={styles.tokenLeft}>
-                <View style={[styles.tokenIconContainer, { backgroundColor: token.color + "20" }]}>
-                  <Ionicons name={token.icon as any} size={24} color={token.color} />
-                </View>
-                <View style={styles.tokenInfo}>
-                  <Text style={styles.tokenName}>{token.name}</Text>
-                  <View style={styles.tokenChange}>
-                    <Ionicons
-                      name={token.change24h >= 0 ? "arrow-up" : "arrow-down"}
-                      size={12}
-                      color={token.change24h >= 0 ? colors.success : colors.error}
-                    />
-                    <Text style={[styles.tokenChangeText, { color: token.change24h >= 0 ? colors.success : colors.error }]}>
-                      {token.change24h >= 0 ? "+" : ""}{token.change24h.toFixed(2)}%
-                    </Text>
+          {selectedTab === "tokens" ? (
+            <>
+              {tokens.map((token) => (
+                <TouchableOpacity
+                  key={token.id}
+                  style={styles.tokenItem}
+                  onPress={() => router.push(`/(modals)/token-detail?tokenId=${token.id}`)}
+                >
+                  <View style={styles.tokenLeft}>
+                    <View style={[styles.tokenIconContainer, { backgroundColor: token.color + "20" }]}>
+                      <Ionicons name={token.icon as any} size={24} color={token.color} />
+                    </View>
+                    <View style={styles.tokenInfo}>
+                      <Text style={styles.tokenName}>{token.name}</Text>
+                      <View style={styles.tokenChange}>
+                        <Ionicons
+                          name={token.change24h >= 0 ? "arrow-up" : "arrow-down"}
+                          size={12}
+                          color={token.change24h >= 0 ? colors.success : colors.error}
+                        />
+                        <Text style={[styles.tokenChangeText, { color: token.change24h >= 0 ? colors.success : colors.error }]}>
+                          {token.change24h >= 0 ? "+" : ""}{token.change24h.toFixed(2)}%
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-              <View style={styles.tokenRight}>
-                <Text style={styles.tokenValue}>${token.usdValue}</Text>
-                <Text style={styles.tokenBalance}>{token.balance} {token.symbol}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <View style={styles.tokenRight}>
+                    <Text style={styles.tokenValue}>${token.usdValue}</Text>
+                    <Text style={styles.tokenBalance}>{token.balance} {token.symbol}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
+          ) : (
+            <View style={styles.nftGrid}>
+              {nfts.map((nft) => (
+                <TouchableOpacity key={nft.id} style={styles.nftCard}>
+                  <View style={[styles.nftArt, { backgroundColor: nft.color + "30" }]}>
+                    <Ionicons name="image-outline" size={28} color={nft.color} />
+                  </View>
+                  <Text numberOfLines={1} style={styles.nftName}>{nft.name}</Text>
+                  <Text numberOfLines={1} style={styles.nftCollection}>{nft.collection}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -436,6 +453,41 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontSize: 12,
     fontWeight: "500"
+  },
+
+  // NFT Grid
+  nftGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md
+  },
+  nftCard: {
+    width: "47%",
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm
+  },
+  nftArt: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm
+  },
+  nftName: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  nftCollection: {
+    color: colors.textDim,
+    fontSize: 12,
+    marginTop: 2
   },
 
   // Bottom Bar

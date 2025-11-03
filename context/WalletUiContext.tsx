@@ -14,6 +14,14 @@ export type UiToken = {
   color: string;
 };
 
+export type UiNft = {
+  id: string;
+  name: string;
+  collection: string;
+  color: string; // used for placeholder tile background
+  usdValue?: string;
+};
+
 type WalletUiContextValue = {
   accounts: UiAccount[];
   activeIndex: number;
@@ -22,6 +30,7 @@ type WalletUiContextValue = {
   networkIndex: number;
   setNetworkIndex: (i: number) => void;
   tokens: UiToken[];
+  nfts: UiNft[];
   totalPortfolioValue: string;
   portfolioChange24h: number;
   addMockAccount: () => void;
@@ -111,6 +120,15 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     }
   ]);
 
+  const [nfts] = useState<UiNft[]>([
+    { id: "nft-azuki-1", name: "Azuki #4521", collection: "Azuki", color: "#C14AFF", usdValue: "2,350.00" },
+    { id: "nft-bayc-1", name: "BAYC #839", collection: "Bored Ape YC", color: "#F9C23C", usdValue: "78,200.00" },
+    { id: "nft-mayc-1", name: "MAYC #1201", collection: "Mutant Ape YC", color: "#8BE38B", usdValue: "12,450.00" },
+    { id: "nft-doodles-1", name: "Doodle #201", collection: "Doodles", color: "#FF8FA3", usdValue: "3,120.00" },
+    { id: "nft-pudgy-1", name: "Pudgy #9901", collection: "Pudgy Penguins", color: "#6AC6FF", usdValue: "5,980.00" },
+    { id: "nft-mfers-1", name: "mfers #101", collection: "mfers", color: "#9E9E9E", usdValue: "890.00" }
+  ]);
+
   const totalPortfolioValue = useMemo(() => {
     const total = tokens.reduce((sum, token) => sum + parseFloat(token.usdValue), 0);
     return total.toFixed(2);
@@ -141,11 +159,12 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     networkIndex,
     setNetworkIndex,
     tokens,
+    nfts,
     totalPortfolioValue,
     portfolioChange24h,
     addMockAccount
   }),
-    [accounts, activeIndex, networks, networkIndex, tokens, totalPortfolioValue, portfolioChange24h]);
+    [accounts, activeIndex, networks, networkIndex, tokens, nfts, totalPortfolioValue, portfolioChange24h]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
