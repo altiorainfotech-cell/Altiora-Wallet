@@ -2,6 +2,17 @@ import React, { createContext, useContext, useMemo, useState } from "react";
 
 export type UiAccount = { id: string; label: string; address: string; balance: string };
 export type UiNetwork = { id: string; name: string; symbol: string };
+export type UiToken = {
+  id: string;
+  name: string;
+  symbol: string;
+  icon: string; // Ionicons name
+  balance: string;
+  usdValue: string;
+  change24h: number; // percentage
+  price: string;
+  color: string;
+};
 
 type WalletUiContextValue = {
   accounts: UiAccount[];
@@ -10,6 +21,9 @@ type WalletUiContextValue = {
   networks: UiNetwork[];
   networkIndex: number;
   setNetworkIndex: (i: number) => void;
+  tokens: UiToken[];
+  totalPortfolioValue: string;
+  portfolioChange24h: number;
   addMockAccount: () => void;
 };
 
@@ -28,14 +42,110 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
   ]);
   const [networkIndex, setNetworkIndex] = useState(0);
 
+  const [tokens] = useState<UiToken[]>([
+    {
+      id: "eth",
+      name: "Ethereum",
+      symbol: "ETH",
+      icon: "logo-ethereum",
+      balance: "0.7107",
+      usdValue: "1945.20",
+      change24h: 5.68,
+      price: "2718.03",
+      color: "#627EEA"
+    },
+    {
+      id: "usdc",
+      name: "USDC Coin",
+      symbol: "USDC",
+      icon: "logo-usd",
+      balance: "110.16",
+      usdValue: "110.20",
+      change24h: 0.77,
+      price: "1.00",
+      color: "#2775CA"
+    },
+    {
+      id: "usdt",
+      name: "Tether",
+      symbol: "USDT",
+      icon: "cash",
+      balance: "136.00",
+      usdValue: "136.00",
+      change24h: -0.2,
+      price: "1.00",
+      color: "#50AF95"
+    },
+    {
+      id: "bnb",
+      name: "BNB",
+      symbol: "BNB",
+      icon: "logo-bitcoin",
+      balance: "1.42",
+      usdValue: "568.49",
+      change24h: 5.90,
+      price: "400.35",
+      color: "#F3BA2F"
+    },
+    {
+      id: "pepe",
+      name: "PEPE",
+      symbol: "PEPE",
+      icon: "happy",
+      balance: "350429430.60",
+      usdValue: "35,325.00",
+      change24h: -1.60,
+      price: "0.0001",
+      color: "#6AA64C"
+    },
+    {
+      id: "wbtc",
+      name: "Wrapped Bitcoin",
+      symbol: "WBTC",
+      icon: "logo-bitcoin",
+      balance: "0.064",
+      usdValue: "6238.00",
+      change24h: -1.60,
+      price: "97468.75",
+      color: "#F09242"
+    }
+  ]);
+
+  const totalPortfolioValue = useMemo(() => {
+    const total = tokens.reduce((sum, token) => sum + parseFloat(token.usdValue), 0);
+    return total.toFixed(2);
+  }, [tokens]);
+
+  const portfolioChange24h = useMemo(() => {
+    const totalValue = parseFloat(totalPortfolioValue);
+    const previousValue = tokens.reduce((sum, token) => {
+      const currentValue = parseFloat(token.usdValue);
+      const previousValue = currentValue / (1 + token.change24h / 100);
+      return sum + previousValue;
+    }, 0);
+    const change = ((totalValue - previousValue) / previousValue) * 100;
+    return change;
+  }, [tokens, totalPortfolioValue]);
+
   const addMockAccount = () => {
     const next = accounts.length + 1;
     setAccounts(prev => [...prev, { id: `acc-${next - 1}`, label: `Account ${next}`, address: `0xA${next}C...${90 + next}F`, balance: "0.0000" }]);
     setActiveIndex(next - 1);
   };
 
-  const value = useMemo(() => ({ accounts, activeIndex, setActiveIndex, networks, networkIndex, setNetworkIndex, addMockAccount }),
-    [accounts, activeIndex, networks, networkIndex]);
+  const value = useMemo(() => ({
+    accounts,
+    activeIndex,
+    setActiveIndex,
+    networks,
+    networkIndex,
+    setNetworkIndex,
+    tokens,
+    totalPortfolioValue,
+    portfolioChange24h,
+    addMockAccount
+  }),
+    [accounts, activeIndex, networks, networkIndex, tokens, totalPortfolioValue, portfolioChange24h]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
