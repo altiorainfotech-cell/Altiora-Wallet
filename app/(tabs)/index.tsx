@@ -1,12 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
-import * as Clipboard from "expo-clipboard";
-import AccountCard from "../../components/AccountCard";
-import PrimaryButton from "../../components/PrimaryButton";
 import Sheet from "../../components/Sheet";
 import { useWalletUi } from "../../context/WalletUiContext";
 import colors from "../../theme/colors";
@@ -14,10 +12,23 @@ import spacing from "../../theme/spacing";
 
 export default function Home() {
   const router = useRouter();
-  const { accounts, activeIndex, setActiveIndex, networks, networkIndex, setNetworkIndex, addMockAccount } = useWalletUi();
+  const {
+    accounts,
+    activeIndex,
+    setActiveIndex,
+    networks,
+    networkIndex,
+    setNetworkIndex,
+    tokens,
+    nfts,
+    totalPortfolioValue,
+    portfolioChange24h,
+    addMockAccount
+  } = useWalletUi();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [networksOpen, setNetworksOpen] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
+  const [selectedTab, setSelectedTab] = useState<"tokens" | "nfts">("tokens");
 
   const active = accounts[activeIndex];
   const net = networks[networkIndex];
@@ -55,170 +66,170 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ExpoLinearGradient colors={[colors.bg, '#0A0D12']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-          {/* Header with wallet info */}
-          <View style={styles.header}>
-            <View style={styles.headerTop}>
-              <View>
-                <Text style={styles.greeting}>Good evening</Text>
-                <Text style={styles.subGreeting}>Non-Custodial Multichain Wallet</Text>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => setNetworksOpen(true)} style={styles.networkSelector}>
+              <Ionicons name="globe" size={20} color={colors.primary} />
+              <Ionicons name="chevron-down" size={16} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAccountsOpen(true)} style={styles.accountSelector}>
+              <View style={styles.accountIcon}>
+                <Ionicons name="person" size={14} color={colors.primary} />
               </View>
-              <TouchableOpacity
-                style={styles.settingsBtn}
-                onPress={() => router.push("/(tabs)/settings")}
-              >
-                <Ionicons name="settings-outline" size={24} color={colors.textDim} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.headerSelectors}>
-              <TouchableOpacity onPress={() => setAccountsOpen(true)} style={styles.headerChip}>
-                <View style={styles.chipIcon}>
-                  <Ionicons name="wallet" size={16} color={colors.primary} />
-                </View>
-                <Text style={styles.headerText}>{active?.label || "Wallet"}</Text>
+              <Text style={styles.accountAddress}>{active?.address || "Account"}</Text>
+              <Ionicons name="chevron-down" size={16} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="notifications-outline" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIcon} onPress={() => router.push("/(tabs)/settings")}>
+              <Ionicons name="settings-outline" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Portfolio Value */}
+        <View style={styles.portfolioSection}>
+          <View style={styles.portfolioHeader}>
+            <Text style={styles.portfolioValue}>${totalPortfolioValue}</Text>
+            <TouchableOpacity onPress={() => setBalanceVisible(!balanceVisible)}>
+              <Ionicons
+                name={balanceVisible ? "eye-outline" : "eye-off-outline"}
+                size={20}
+                color={colors.textDim}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.portfolioChange}>
+            <Ionicons
+              name={portfolioChange24h >= 0 ? "arrow-up" : "arrow-down"}
+              size={14}
+              color={portfolioChange24h >= 0 ? colors.success : colors.error}
+            />
+            <Text style={[styles.changeText, { color: portfolioChange24h >= 0 ? colors.success : colors.error }]}>
+              ${Math.abs((parseFloat(totalPortfolioValue) * portfolioChange24h) / 100).toFixed(2)} ({portfolioChange24h >= 0 ? "+" : ""}{portfolioChange24h.toFixed(2)}%)
+            </Text>
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              style={[styles.tab, selectedTab === "tokens" && styles.tabActive]}
+              onPress={() => setSelectedTab("tokens")}
+            >
+              <Text style={[styles.tabText, selectedTab === "tokens" && styles.tabTextActive]}>Tokens</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, selectedTab === "nfts" && styles.tabActive]}
+              onPress={() => setSelectedTab("nfts")}
+            >
+              <Text style={[styles.tabText, selectedTab === "nfts" && styles.tabTextActive]}>NFTs</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* List Area */}
+        <ScrollView style={styles.tokenList} showsVerticalScrollIndicator={false}>
+          <View style={styles.tokenListHeader}>
+            <View style={styles.sortButtons}>
+              <TouchableOpacity style={styles.sortBtn}>
+                <Text style={styles.sortBtnText}>{selectedTab === "tokens" ? "Popular networks" : "Top collections"}</Text>
                 <Ionicons name="chevron-down" size={14} color={colors.textDim} />
               </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => setNetworksOpen(true)} style={styles.headerChip}>
-                <View style={styles.chipIcon}>
-                  <Ionicons name="globe" size={16} color={colors.primary} />
-                </View>
-                <Text style={styles.headerText}>{net.name}</Text>
-                <Ionicons name="chevron-down" size={14} color={colors.textDim} />
+              <TouchableOpacity style={styles.iconBtn}>
+                <Ionicons name="funnel-outline" size={18} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={addMockAccount}>
+                <Ionicons name="add" size={18} color={colors.text} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Enhanced Account Card */}
-          <View style={styles.cardContainer}>
-            <ExpoLinearGradient 
-              colors={['#1A1F2E', '#242B3D']} 
-              start={{x: 0, y: 0}} 
-              end={{x: 1, y: 1}}
-              style={styles.enhancedCard}
-            >
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>{active?.label || "Main Account"}</Text>
-                  <Text style={styles.cardSubtitle}>Non-custodial • Secure</Text>
-                </View>
-                <View style={styles.networkBadge}>
-                  <Text style={styles.networkBadgeText}>{net.name}</Text>
-                </View>
-              </View>
-              
-              <View style={styles.balanceSection}>
-                <View style={styles.balanceLabelRow}>
-                  <Text style={styles.balanceLabel}>Total Balance</Text>
-                  <TouchableOpacity onPress={() => setBalanceVisible(!balanceVisible)}>
-                    <Ionicons
-                      name={balanceVisible ? "eye-outline" : "eye-off-outline"}
-                      size={18}
-                      color={colors.textDim}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.balanceRow}>
-                  <Text style={styles.balance}>
-                    {balanceVisible ? (active?.balance || "0.0000") : "••••••"}
-                  </Text>
-                  {balanceVisible && <Text style={styles.symbol}>{net.symbol}</Text>}
-                </View>
-                <Text style={styles.usdValue}>
-                  {balanceVisible ? "≈ $0.00 USD" : "••••••"}
-                </Text>
-              </View>
-              
-              <View style={styles.addressSection}>
-                <Text style={styles.addressLabel}>Address</Text>
-                <View style={styles.addressRow}>
-                  <Text style={styles.address} numberOfLines={1} ellipsizeMode="middle">
-                    {active?.address || "0x...."}
-                  </Text>
-                  <TouchableOpacity style={styles.copyBtn} onPress={copyAddress}>
-                    <Ionicons name="copy-outline" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ExpoLinearGradient>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.sendBtn]}
-              onPress={() => router.push("/(modals)/send")}
-              activeOpacity={0.8}
-            >
-              <View style={styles.actionIcon}>
-                <Ionicons name="arrow-up" size={22} color="white" />
-              </View>
-              <Text style={styles.actionText}>Send</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.receiveBtn]}
-              onPress={() => router.push("/(modals)/receive")}
-              activeOpacity={0.8}
-            >
-              <View style={styles.actionIcon}>
-                <Ionicons name="arrow-down" size={22} color="white" />
-              </View>
-              <Text style={styles.actionText}>Receive</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.swapBtn]}
-              activeOpacity={0.8}
-            >
-              <View style={styles.actionIcon}>
-                <Ionicons name="swap-horizontal" size={22} color="white" />
-              </View>
-              <Text style={styles.actionText}>Swap</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Features Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Wallet Features</Text>
-            <View style={styles.featuresGrid}>
-              <TouchableOpacity onPress={addMockAccount} style={styles.featureCard}>
-                <View style={styles.featureIcon}>
-                  <Ionicons name="add-circle" size={24} color={colors.primary} />
-                </View>
-                <Text style={styles.featureTitle}>Add Account</Text>
-                <Text style={styles.featureDesc}>Create new wallet</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.featureCard}>
-                <View style={styles.featureIcon}>
-                  <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
-                </View>
-                <Text style={styles.featureTitle}>Security</Text>
-                <Text style={styles.featureDesc}>Backup & recovery</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.featureCard}>
-                <View style={styles.featureIcon}>
-                  <Ionicons name="analytics" size={24} color={colors.primary} />
-                </View>
-                <Text style={styles.featureTitle}>Portfolio</Text>
-                <Text style={styles.featureDesc}>Track assets</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.featureCard}>
-                <View style={styles.featureIcon}>
-                  <Ionicons name="link" size={24} color={colors.primary} />
-                </View>
-                <Text style={styles.featureTitle}>DApps</Text>
-                <Text style={styles.featureDesc}>Connect to apps</Text>
-              </TouchableOpacity>
+          {selectedTab === "tokens" ? (
+            <>
+              {tokens.map((token) => (
+                <TouchableOpacity
+                  key={token.id}
+                  style={styles.tokenItem}
+                  onPress={() => router.push(`/(modals)/token-detail?tokenId=${token.id}`)}
+                >
+                  <View style={styles.tokenLeft}>
+                    <View style={[styles.tokenIconContainer, { backgroundColor: token.color + "20" }]}>
+                      <Ionicons name={token.icon as any} size={24} color={token.color} />
+                    </View>
+                    <View style={styles.tokenInfo}>
+                      <Text style={styles.tokenName}>{token.name}</Text>
+                      <View style={styles.tokenChange}>
+                        <Ionicons
+                          name={token.change24h >= 0 ? "arrow-up" : "arrow-down"}
+                          size={12}
+                          color={token.change24h >= 0 ? colors.success : colors.error}
+                        />
+                        <Text style={[styles.tokenChangeText, { color: token.change24h >= 0 ? colors.success : colors.error }]}>
+                          {token.change24h >= 0 ? "+" : ""}{token.change24h.toFixed(2)}%
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.tokenRight}>
+                    <Text style={styles.tokenValue}>${token.usdValue}</Text>
+                    <Text style={styles.tokenBalance}>{token.balance} {token.symbol}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
+          ) : (
+            <View style={styles.nftGrid}>
+              {nfts.map((nft) => (
+                <TouchableOpacity key={nft.id} style={styles.nftCard}>
+                  <View style={[styles.nftArt, { backgroundColor: nft.color + "30" }]}>
+                    <Ionicons name="image-outline" size={28} color={nft.color} />
+                  </View>
+                  <Text numberOfLines={1} style={styles.nftName}>{nft.name}</Text>
+                  <Text numberOfLines={1} style={styles.nftCollection}>{nft.collection}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </View>
+          )}
+
+          <View style={{ height: 100 }} />
         </ScrollView>
-      </ExpoLinearGradient>
+
+        {/* Bottom Action Bar */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/send")}>
+            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="arrow-up" size={20} color="white" />
+            </View>
+            <Text style={styles.bottomBtnText}>Send</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/swap")}>
+            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="swap-horizontal" size={20} color="white" />
+            </View>
+            <Text style={styles.bottomBtnText}>Swap</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/connect-dapp")}>
+            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="apps" size={20} color="white" />
+            </View>
+            <Text style={styles.bottomBtnText}>Connect</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/receive")}>
+            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="arrow-down" size={20} color="white" />
+            </View>
+            <Text style={styles.bottomBtnText}>Receive</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <Sheet visible={accountsOpen} onClose={() => setAccountsOpen(false)}>
         <Text style={styles.sheetTitle}>Your accounts</Text>
@@ -235,133 +246,278 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  gradient: { flex: 1 },
-  container: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  container: { flex: 1, backgroundColor: colors.bg },
 
-  // Header styles
-  header: { marginBottom: spacing.xl },
-  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.lg },
-  greeting: { color: colors.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
-  subGreeting: { color: colors.textDim, fontSize: 13, marginTop: 4, fontWeight: "500" },
-  settingsBtn: { padding: spacing.sm, marginTop: -4 },
-  headerSelectors: { flexDirection: "row", gap: spacing.md },
-  headerChip: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    gap: spacing.sm, 
-    backgroundColor: colors.card, 
-    paddingHorizontal: spacing.md, 
-    paddingVertical: spacing.sm, 
+  // Header
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing.md, flex: 1 },
+  networkSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  accountSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flex: 1
+  },
+  accountIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary + "30",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  accountAddress: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1
+  },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  headerIcon: { padding: spacing.xs },
+
+  // Portfolio
+  portfolioSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.bg
+  },
+  portfolioHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs
+  },
+  portfolioValue: {
+    color: colors.text,
+    fontSize: 36,
+    fontWeight: "800"
+  },
+  portfolioChange: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginBottom: spacing.lg
+  },
+  changeText: {
+    fontSize: 14,
+    fontWeight: "600"
+  },
+
+  // Tabs
+  tabs: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginTop: spacing.md
+  },
+  tab: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 20,
+    backgroundColor: "transparent"
+  },
+  tabActive: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  tabText: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontWeight: "600"
+  },
+  tabTextActive: {
+    color: colors.text
+  },
+
+  // Token List
+  tokenList: {
+    flex: 1,
+    backgroundColor: colors.bg
+  },
+  tokenListHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  sortButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  sortBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     flex: 1
   },
-  chipIcon: { 
-    width: 28, 
-    height: 28, 
-    borderRadius: 14, 
-    backgroundColor: colors.chip, 
-    alignItems: "center", 
-    justifyContent: "center" 
+  sortBtnText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "500"
   },
-  headerText: { color: colors.text, fontWeight: "600", flex: 1 },
-  
-  // Enhanced card styles
-  cardContainer: { marginBottom: spacing.xl },
-  enhancedCard: { 
-    borderRadius: 20, 
-    padding: spacing.lg, 
-    borderWidth: 1, 
-    borderColor: colors.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.lg },
-  cardTitle: { color: colors.text, fontWeight: "700", fontSize: 18 },
-  cardSubtitle: { color: colors.textDim, fontSize: 12, marginTop: 2 },
-  networkBadge: { 
-    backgroundColor: colors.primary + "20", 
-    paddingHorizontal: spacing.sm, 
-    paddingVertical: 4, 
+
+  // Token Item
+  tokenItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  tokenLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    flex: 1
+  },
+  tokenIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  tokenInfo: {
+    flex: 1
+  },
+  tokenName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 2
+  },
+  tokenChange: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  tokenChangeText: {
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  tokenRight: {
+    alignItems: "flex-end"
+  },
+  tokenValue: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  tokenBalance: {
+    color: colors.textDim,
+    fontSize: 12,
+    fontWeight: "500"
+  },
+
+  // NFT Grid
+  nftGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md
+  },
+  nftCard: {
+    width: "47%",
+    backgroundColor: colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.primary + "40"
+    borderColor: colors.border,
+    padding: spacing.sm
   },
-  networkBadgeText: { color: colors.primary, fontSize: 11, fontWeight: "600" },
-
-  balanceSection: { marginBottom: spacing.lg },
-  balanceLabelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  balanceLabel: { color: colors.textDim, fontSize: 12 },
-  balanceRow: { flexDirection: "row", alignItems: "baseline", marginBottom: 4 },
-  balance: { color: colors.text, fontSize: 32, fontWeight: "800" },
-  symbol: { color: colors.textDim, marginLeft: spacing.sm, fontSize: 18, fontWeight: "600" },
-  usdValue: { color: colors.textDim, fontSize: 14 },
-  
-  addressSection: {},
-  addressLabel: { color: colors.textDim, fontSize: 12, marginBottom: 4 },
-  addressRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  address: { color: colors.text, fontSize: 14, fontFamily: "monospace", flex: 1 },
-  copyBtn: { padding: spacing.sm, marginLeft: spacing.sm },
-  
-  // Action buttons
-  actions: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.xl },
-  actionBtn: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: spacing.lg + 2,
-    borderRadius: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6
-  },
-  sendBtn: {
-    backgroundColor: "#FF6B6B",
-  },
-  receiveBtn: {
-    backgroundColor: "#4ECDC4",
-  },
-  swapBtn: {
-    backgroundColor: colors.primary,
-  },
-  actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.25)",
+  nftArt: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.sm
   },
-  actionText: { color: "white", fontWeight: "700", fontSize: 15, letterSpacing: 0.3 },
-  
-  // Features section
-  section: { marginBottom: spacing.xl },
-  sectionTitle: { color: colors.text, fontWeight: "700", fontSize: 20, marginBottom: spacing.lg },
-  featuresGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  featureCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: spacing.lg + 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    width: "47%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+  nftName: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700"
   },
-  featureIcon: { marginBottom: spacing.sm + 2 },
-  featureTitle: { color: colors.text, fontWeight: "700", fontSize: 15, marginBottom: 4 },
-  featureDesc: { color: colors.textDim, fontSize: 12, textAlign: "center", lineHeight: 16 },
-  
+  nftCollection: {
+    color: colors.textDim,
+    fontSize: 12,
+    marginTop: 2
+  },
+
+  // Bottom Bar
+  bottomBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border
+  },
+  bottomBtn: {
+    alignItems: "center",
+    gap: spacing.xs
+  },
+  bottomBtnIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  bottomBtnText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "600"
+  },
+
   // Sheet styles
   sheetTitle: { color: colors.text, fontWeight: "700", fontSize: 18 },
   listItem: { paddingVertical: spacing.md, borderBottomColor: colors.border, borderBottomWidth: 1 },
