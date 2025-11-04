@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { EthereumIcon } from "../../components/icons";
 import Sheet from "../../components/Sheet";
 import { useWalletUi } from "../../context/WalletUiContext";
 import colors from "../../theme/colors";
@@ -159,7 +159,11 @@ export default function Home() {
                 >
                   <View style={styles.tokenLeft}>
                     <View style={[styles.tokenIconContainer, { backgroundColor: token.color + "20" }]}>
-                      <Ionicons name={token.icon as any} size={24} color={token.color} />
+                      {token.iconType === 'custom' && token.icon === 'ethereum' ? (
+                        <EthereumIcon size={24} />
+                      ) : (
+                        <Ionicons name={token.icon as any} size={24} color={token.color} />
+                      )}
                     </View>
                     <View style={styles.tokenInfo}>
                       <Text style={styles.tokenName}>{token.name}</Text>

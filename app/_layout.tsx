@@ -10,8 +10,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <WalletUiProvider>
           <StatusBar style="light" />
-          {/* Root stack: tabs + modal routes */}
-          <Stack screenOptions={{ headerShown: false }}>
+          {/* Root stack: index gate + onboarding + tabs + modal routes */}
+          <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="(modals)/send" options={{ presentation: "modal" }} />
             <Stack.Screen name="(modals)/receive" options={{ presentation: "modal" }} />
