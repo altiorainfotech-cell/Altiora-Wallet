@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { EthereumIcon } from "../../components/icons";
 import { useRouter } from "expo-router";
 import React, { useState, useMemo } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert } from "react-native";
@@ -93,7 +94,11 @@ export default function SwapModal() {
       <TouchableOpacity style={styles.tokenSelector} onPress={onPress}>
         <View style={styles.tokenLeft}>
           <View style={[styles.tokenIcon, { backgroundColor: token.color + "20" }]}>
-            <Ionicons name={token.icon as any} size={28} color={token.color} />
+            {token.iconType === 'custom' && token.icon === 'ethereum' ? (
+              <EthereumIcon size={28} color={token.color} />
+            ) : (
+              <Ionicons name={token.icon as any} size={28} color={token.color} />
+            )}
           </View>
           <View>
             <Text style={styles.tokenName}>{token.symbol}</Text>
@@ -152,7 +157,11 @@ export default function SwapModal() {
                   >
                     <View style={styles.tokenListLeft}>
                       <View style={[styles.tokenIcon, { backgroundColor: token.color + "20" }]}>
-                        <Ionicons name={token.icon as any} size={28} color={token.color} />
+                        {token.iconType === 'custom' && token.icon === 'ethereum' ? (
+                          <EthereumIcon size={28} color={token.color} />
+                        ) : (
+                          <Ionicons name={token.icon as any} size={28} color={token.color} />
+                        )}
                       </View>
                       <View>
                         <Text style={styles.tokenListName}>{token.name}</Text>
