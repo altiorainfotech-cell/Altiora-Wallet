@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,21 +22,38 @@ export default function TokenDetailModal() {
   // Find token by ID from params
   const token = tokens.find(t => t.id === params.tokenId) || tokens[0];
 
-  // Generate mock chart data
-  const generateChartData = () => {
-    const points = 50;
-    const data = [];
+  // Generate mock chart data by period (simple trend + noise)
+  const chartData = useMemo(() => {
+    const periodPointsMap: Record<string, number> = {
+      "1D": 48,   // ~30-min candles
+      "1W": 84,   // ~2-hour candles
+      "1M": 120,  // ~6-hour candles
+      "3M": 90,   // ~1-day candles
+      "1Y": 120,  // ~3-day candles
+      "3Y": 156,  // ~1-week candles
+    };
+    const points = periodPointsMap[selectedPeriod] ?? 50;
+    const data: number[] = [];
     let basePrice = parseFloat(token.price);
 
+    const trendSign = (token.change24h ?? 0) >= 0 ? 1 : -1;
+    const trendScaleMap: Record<string, number> = {
+      "1D": 0.15,
+      "1W": 0.5,
+      "1M": 1.5,
+      "3M": 3,
+      "1Y": 6,
+      "3Y": 12,
+    };
+    const trendScale = trendScaleMap[selectedPeriod] ?? 0.5;
+
     for (let i = 0; i < points; i++) {
-      const variance = (Math.random() - 0.5) * basePrice * 0.15;
-      const trend = token.change24h > 0 ? i * 0.5 : -i * 0.5;
-      data.push(basePrice + variance + trend);
+      const variance = (Math.random() - 0.5) * basePrice * 0.02; // 2% noise
+      const trend = trendSign * (i / points) * (basePrice * (trendScale / 100));
+      data.push(Math.max(0.000001, basePrice + variance + trend));
     }
     return data;
-  };
-
-  const chartData = generateChartData();
+  }, [selectedPeriod, token.price, token.change24h]);
   const minPrice = Math.min(...chartData);
   const maxPrice = Math.max(...chartData);
   const priceRange = maxPrice - minPrice;
@@ -52,6 +69,20 @@ export default function TokenDetailModal() {
   };
 
   const periods = ["1D", "1W", "1M", "3M", "1Y", "3Y"];
+
+  // Compute period change from generated data (first vs last)
+  const firstPrice = chartData[0] ?? parseFloat(token.price);
+  const lastPrice = chartData[chartData.length - 1] ?? parseFloat(token.price);
+  const periodChangeAbs = lastPrice - firstPrice;
+  const periodChangePct = firstPrice > 0 ? (periodChangeAbs / firstPrice) * 100 : 0;
+  const periodLabelMap: Record<string, string> = {
+    "1D": "24h",
+    "1W": "7d",
+    "1M": "30d",
+    "3M": "3m",
+    "1Y": "1y",
+    "3Y": "3y",
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -78,17 +109,17 @@ export default function TokenDetailModal() {
             {/* Price Info */}
             <View style={styles.priceSection}>
               <Text style={styles.tokenSymbol}>{token.symbol} (Ethereum)</Text>
-              <Text style={styles.price}>${token.price}</Text>
+              <Text style={styles.price}>${lastPrice.toFixed(2)}</Text>
               <View style={styles.changeRow}>
                 <Ionicons
-                  name={token.change24h >= 0 ? "arrow-up" : "arrow-down"}
+                  name={periodChangePct >= 0 ? "arrow-up" : "arrow-down"}
                   size={16}
-                  color={token.change24h >= 0 ? colors.success : colors.error}
+                  color={periodChangePct >= 0 ? colors.success : colors.error}
                 />
-                <Text style={[styles.changeValue, { color: token.change24h >= 0 ? colors.success : colors.error }]}>
-                  ${Math.abs((parseFloat(token.price) * token.change24h) / 100).toFixed(2)} ({token.change24h >= 0 ? "+" : ""}{token.change24h}%)
+                <Text style={[styles.changeValue, { color: periodChangePct >= 0 ? colors.success : colors.error }]}>
+                  ${Math.abs(periodChangeAbs).toFixed(2)} ({periodChangePct >= 0 ? "+" : ""}{periodChangePct.toFixed(2)}%)
                 </Text>
-                <Text style={styles.changePeriod}>Today</Text>
+                <Text style={styles.changePeriod}>{periodLabelMap[selectedPeriod] ?? "24h"}</Text>
               </View>
             </View>
 
@@ -98,12 +129,12 @@ export default function TokenDetailModal() {
                 {/* Gradient fill */}
                 <Path
                   d={`${generatePath()} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`}
-                  fill={token.change24h >= 0 ? colors.success + "20" : colors.error + "20"}
+                  fill={periodChangePct >= 0 ? colors.success + "20" : colors.error + "20"}
                 />
                 {/* Line */}
                 <Path
                   d={generatePath()}
-                  stroke={token.change24h >= 0 ? colors.success : colors.error}
+                  stroke={periodChangePct >= 0 ? colors.success : colors.error}
                   strokeWidth={2}
                   fill="none"
                 />
@@ -168,7 +199,11 @@ export default function TokenDetailModal() {
               <View style={styles.balanceHeader}>
                 <View style={styles.balanceLeft}>
                   <View style={[styles.tokenIcon, { backgroundColor: token.color + "20" }]}>
-                    <Ionicons name={token.icon as any} size={24} color={token.color} />
+                    {token.iconType === 'custom' && token.icon === 'ethereum' ? (
+                      <EthereumIcon size={24} color={token.color} />
+                    ) : (
+                      <Ionicons name={token.icon as any} size={24} color={token.color} />
+                    )}
                   </View>
                   <View>
                     <Text style={styles.balanceTitle}>Your balance</Text>

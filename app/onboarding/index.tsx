@@ -1,6 +1,6 @@
+import { setItem } from '@/lib/storage';
 import spacing from '@/theme/spacing';
 import { Ionicons } from '@expo/vector-icons';
-import { setItem } from '@/lib/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import type { ViewToken, ViewabilityConfig } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -75,22 +76,24 @@ const slides: OnboardingSlide[] = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<OnboardingSlide>>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
   // Responsive sizing
   const isLargeScreen = width > 768;
   const imageSize = isLargeScreen ? Math.min(width * 0.4, 400) : Math.min(width * 0.7, 350);
 
-  const viewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
+  const viewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<ViewToken> }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setCurrentIndex(viewableItems[0].index!);
+      }
     }
-  }).current;
+  ).current;
 
-  const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+  const viewConfig = useRef<ViewabilityConfig>({ viewAreaCoveragePercentThreshold: 50 }).current;
 
   const handlePrimaryAction = async () => {
     if (currentIndex < slides.length - 1) {

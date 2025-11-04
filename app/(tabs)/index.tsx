@@ -29,6 +29,8 @@ export default function Home() {
   const [networksOpen, setNetworksOpen] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [selectedTab, setSelectedTab] = useState<"tokens" | "nfts">("tokens");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [tokenFilter, setTokenFilter] = useState<"all" | "gainers" | "losers">("all");
 
   const active = accounts[activeIndex];
   const net = networks[networkIndex];
@@ -64,6 +66,12 @@ export default function Home() {
     [networks, networkIndex]
   );
 
+  const filteredTokens = useMemo(() => {
+    if (tokenFilter === "gainers") return tokens.filter(t => t.change24h >= 0);
+    if (tokenFilter === "losers") return tokens.filter(t => t.change24h < 0);
+    return tokens;
+  }, [tokens, tokenFilter]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -92,27 +100,38 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Portfolio Value */}
-        <View style={styles.portfolioSection}>
-          <View style={styles.portfolioHeader}>
-            <Text style={styles.portfolioValue}>${totalPortfolioValue}</Text>
-            <TouchableOpacity onPress={() => setBalanceVisible(!balanceVisible)}>
+        <ScrollView
+          style={styles.tokenList}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: spacing.lg }}
+        >
+          {/* Portfolio Value */}
+          <View style={styles.portfolioSection}>
+            <View style={styles.portfolioHeader}>
+              <Text style={styles.portfolioValue}>
+                {balanceVisible ? `$${totalPortfolioValue}` : '****'}
+              </Text>
+              <TouchableOpacity onPress={() => setBalanceVisible(!balanceVisible)}>
+                <Ionicons
+                  name={balanceVisible ? "eye-outline" : "eye-off-outline"}
+                  size={20}
+                  color={colors.textDim}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.portfolioChange}>
               <Ionicons
-                name={balanceVisible ? "eye-outline" : "eye-off-outline"}
-                size={20}
-                color={colors.textDim}
+                name={portfolioChange24h >= 0 ? "arrow-up" : "arrow-down"}
+                size={14}
+                color={portfolioChange24h >= 0 ? colors.success : colors.error}
               />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.portfolioChange}>
-            <Ionicons
-              name={portfolioChange24h >= 0 ? "arrow-up" : "arrow-down"}
-              size={14}
-              color={portfolioChange24h >= 0 ? colors.success : colors.error}
-            />
-            <Text style={[styles.changeText, { color: portfolioChange24h >= 0 ? colors.success : colors.error }]}>
-              ${Math.abs((parseFloat(totalPortfolioValue) * portfolioChange24h) / 100).toFixed(2)} ({portfolioChange24h >= 0 ? "+" : ""}{portfolioChange24h.toFixed(2)}%)
-            </Text>
+              <Text style={[styles.changeText, { color: portfolioChange24h >= 0 ? colors.success : colors.error }]}>
+                {balanceVisible
+                  ? `$${Math.abs((parseFloat(totalPortfolioValue) * portfolioChange24h) / 100).toFixed(2)} (${portfolioChange24h >= 0 ? "+" : ""}${portfolioChange24h.toFixed(2)}%)`
+                  : '****'
+                }
+              </Text>
+            </View>
           </View>
 
           {/* Tabs */}
@@ -130,28 +149,23 @@ export default function Home() {
               <Text style={[styles.tabText, selectedTab === "nfts" && styles.tabTextActive]}>NFTs</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* List Area */}
-        <ScrollView style={styles.tokenList} showsVerticalScrollIndicator={false}>
-          <View style={styles.tokenListHeader}>
-            <View style={styles.sortButtons}>
+          <View style={styles.sortButtons}>
               <TouchableOpacity style={styles.sortBtn}>
                 <Text style={styles.sortBtnText}>{selectedTab === "tokens" ? "Popular networks" : "Top collections"}</Text>
                 <Ionicons name="chevron-down" size={14} color={colors.textDim} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setFiltersOpen(true)}>
                 <Ionicons name="funnel-outline" size={18} color={colors.text} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={addMockAccount}>
                 <Ionicons name="add" size={18} color={colors.text} />
               </TouchableOpacity>
             </View>
-          </View>
 
           {selectedTab === "tokens" ? (
             <>
-              {tokens.map((token) => (
+              {filteredTokens.map((token) => (
                 <TouchableOpacity
                   key={token.id}
                   style={styles.tokenItem}
@@ -180,15 +194,30 @@ export default function Home() {
                     </View>
                   </View>
                   <View style={styles.tokenRight}>
-                    <Text style={styles.tokenValue}>${token.usdValue}</Text>
-                    <Text style={styles.tokenBalance}>{token.balance} {token.symbol}</Text>
+                    <Text style={styles.tokenValue}>
+                      {balanceVisible ? `$${token.usdValue}` : '****'}
+                    </Text>
+                    <Text style={styles.tokenBalance}>
+                      {balanceVisible ? `${token.balance} ${token.symbol}` : '****'}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               ))}
             </>
           ) : (
             <View style={styles.nftGrid}>
-              {nfts.map((nft) => (
+              {(
+                (nfts && nfts.length > 0)
+                  ? nfts
+                  : [
+                      { id: 'nft-temp-1', name: 'Azuki #4521', collection: 'Azuki', color: '#C14AFF' },
+                      { id: 'nft-temp-2', name: 'BAYC #839', collection: 'Bored Ape YC', color: '#F9C23C' },
+                      { id: 'nft-temp-3', name: 'MAYC #1201', collection: 'Mutant Ape YC', color: '#8BE38B' },
+                      { id: 'nft-temp-4', name: 'Doodle #201', collection: 'Doodles', color: '#FF8FA3' },
+                      { id: 'nft-temp-5', name: 'Pudgy #9901', collection: 'Pudgy Penguins', color: '#6AC6FF' },
+                      { id: 'nft-temp-6', name: 'mfers #101', collection: 'mfers', color: '#9E9E9E' },
+                    ]
+              ).map((nft: any) => (
                 <TouchableOpacity key={nft.id} style={styles.nftCard}>
                   <View style={[styles.nftArt, { backgroundColor: nft.color + "30" }]}>
                     <Ionicons name="image-outline" size={28} color={nft.color} />
@@ -199,41 +228,10 @@ export default function Home() {
               ))}
             </View>
           )}
-
-          <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Bottom Action Bar */}
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/send")}>
-            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="arrow-up" size={20} color="white" />
-            </View>
-            <Text style={styles.bottomBtnText}>Send</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/swap")}>
-            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="swap-horizontal" size={20} color="white" />
-            </View>
-            <Text style={styles.bottomBtnText}>Swap</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/connect-dapp")}>
-            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="apps" size={20} color="white" />
-            </View>
-            <Text style={styles.bottomBtnText}>Connect</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.bottomBtn} onPress={() => router.push("/(modals)/receive")}>
-            <View style={[styles.bottomBtnIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="arrow-down" size={20} color="white" />
-            </View>
-            <Text style={styles.bottomBtnText}>Receive</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+
 
       <Sheet visible={accountsOpen} onClose={() => setAccountsOpen(false)}>
         <Text style={styles.sheetTitle}>Your accounts</Text>
@@ -243,6 +241,22 @@ export default function Home() {
       <Sheet visible={networksOpen} onClose={() => setNetworksOpen(false)}>
         <Text style={styles.sheetTitle}>Select network</Text>
         <ScrollView style={{ marginTop: spacing.md }}>{networkList}</ScrollView>
+      </Sheet>
+
+      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)}>
+        <Text style={styles.sheetTitle}>Filter tokens</Text>
+        <TouchableOpacity style={styles.listItem} onPress={() => { setTokenFilter('all'); setFiltersOpen(false); }}>
+          <Text style={[styles.listTitle, tokenFilter === 'all' && { color: colors.primary }]}>All</Text>
+          <Text style={styles.listSub}>Show all tokens</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.listItem} onPress={() => { setTokenFilter('gainers'); setFiltersOpen(false); }}>
+          <Text style={[styles.listTitle, tokenFilter === 'gainers' && { color: colors.primary }]}>Gainers</Text>
+          <Text style={styles.listSub}>24h change ≥ 0%</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.listItem} onPress={() => { setTokenFilter('losers'); setFiltersOpen(false); }}>
+          <Text style={[styles.listTitle, tokenFilter === 'losers' && { color: colors.primary }]}>Losers</Text>
+          <Text style={styles.listSub}>24h change {'<'} 0%</Text>
+        </TouchableOpacity>
       </Sheet>
     </SafeAreaView>
   );
@@ -258,7 +272,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.bg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border
@@ -309,7 +323,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    backgroundColor: colors.bg
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs
   },
   portfolioHeader: {
     flexDirection: "row",
@@ -319,7 +339,7 @@ const styles = StyleSheet.create({
   },
   portfolioValue: {
     color: colors.text,
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: "800"
   },
   portfolioChange: {
@@ -336,23 +356,30 @@ const styles = StyleSheet.create({
   // Tabs
   tabs: {
     flexDirection: "row",
-    gap: spacing.md,
-    marginTop: spacing.md
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    padding: spacing.xs,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border
   },
   tab: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: "transparent"
   },
   tabActive: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.chip,
     borderWidth: 1,
     borderColor: colors.border
   },
   tabText: {
     color: colors.textDim,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600"
   },
   tabTextActive: {
@@ -364,16 +391,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg
   },
-  tokenListHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border
-  },
   sortButtons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs
   },
   sortBtn: {
     flexDirection: "row",
@@ -389,7 +413,7 @@ const styles = StyleSheet.create({
   },
   sortBtnText: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "500"
   },
   iconBtn: {
@@ -409,9 +433,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.xs
   },
   tokenLeft: {
     flexDirection: "row",
@@ -424,7 +452,12 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4
   },
   tokenInfo: {
     flex: 1
@@ -494,37 +527,10 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
 
-  // Bottom Bar
-  bottomBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.border
-  },
-  bottomBtn: {
-    alignItems: "center",
-    gap: spacing.xs
-  },
-  bottomBtnIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  bottomBtnText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "600"
-  },
-
   // Sheet styles
   sheetTitle: { color: colors.text, fontWeight: "700", fontSize: 18 },
   listItem: { paddingVertical: spacing.md, borderBottomColor: colors.border, borderBottomWidth: 1 },
   listTitle: { color: colors.text, fontWeight: "700" },
   listSub: { color: colors.textDim, marginTop: 4 },
 });
+
