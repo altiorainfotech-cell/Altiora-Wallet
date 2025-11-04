@@ -6,7 +6,8 @@ export type UiToken = {
   id: string;
   name: string;
   symbol: string;
-  icon: string; // Ionicons name
+  icon: string; // Ionicons name or 'custom'
+  iconType?: 'ionicon' | 'custom'; // Type of icon
   balance: string;
   usdValue: string;
   change24h: number; // percentage
@@ -56,7 +57,8 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       id: "eth",
       name: "Ethereum",
       symbol: "ETH",
-      icon: "logo-ethereum",
+      icon: "ethereum",
+      iconType: "custom",
       balance: "0.7107",
       usdValue: "1945.20",
       change24h: 5.68,
@@ -67,7 +69,8 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       id: "usdc",
       name: "USDC Coin",
       symbol: "USDC",
-      icon: "logo-usd",
+      icon: "cash-outline",
+      iconType: "ionicon",
       balance: "110.16",
       usdValue: "110.20",
       change24h: 0.77,
@@ -79,6 +82,7 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       name: "Tether",
       symbol: "USDT",
       icon: "cash",
+      iconType: "ionicon",
       balance: "136.00",
       usdValue: "136.00",
       change24h: -0.2,
@@ -89,7 +93,8 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       id: "bnb",
       name: "BNB",
       symbol: "BNB",
-      icon: "logo-bitcoin",
+      icon: "diamond-outline",
+      iconType: "ionicon",
       balance: "1.42",
       usdValue: "568.49",
       change24h: 5.90,
@@ -101,6 +106,7 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       name: "PEPE",
       symbol: "PEPE",
       icon: "happy",
+      iconType: "ionicon",
       balance: "350429430.60",
       usdValue: "35,325.00",
       change24h: -1.60,
@@ -112,6 +118,7 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       name: "Wrapped Bitcoin",
       symbol: "WBTC",
       icon: "logo-bitcoin",
+      iconType: "ionicon",
       balance: "0.064",
       usdValue: "6238.00",
       change24h: -1.60,
