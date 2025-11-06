@@ -5,7 +5,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import CryptoJS from "crypto-js";
 import { HDNodeWallet, Wallet, JsonRpcProvider, parseEther, ethers } from "ethers";
-import axios from "axios";
+
 const BASE_URL = "https://api.0x.org/swap/v1";
 interface WalletDetails {
     address: string,
@@ -21,6 +21,7 @@ interface WalletDetails {
     blockExplorerUrls: string[];
     icon?: any
 }
+type WalletStorageKey = "private_keys" | "SRP_wallet";
 interface AccountcntxType {
     walletDetails: WalletDetails;
     setWalletDetails: React.Dispatch<React.SetStateAction<WalletDetails>>;
@@ -130,8 +131,10 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
     // handleSecureStore
     const handleSecureStore = async (key_for_wallet_type: string, value: HDNodeWallet | Wallet) => {
         try {
-            await handleSetAuthentication();
-
+            const isAuthenticated = await handleAuthentication("Authenticate to save wallet");
+            if (!isAuthenticated) {
+                return false;
+            }
             const checkAvailability = await SecureStore.isAvailableAsync();
 
 
@@ -170,9 +173,13 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
         }
     }
 
-    const handleAccountRetreival = async (key: string) => {
+    const handleAccountRetreival = async () => {
         try {
-            handleAuthenticaton("Unlock Wallet")
+            const isAuthenticated = await handleAuthentication("Unlock Wallet")
+            if (!isAuthenticated) {
+                setError("Authentication required");
+                return;
+            }
             // const aesKey = await SecureStore.getItemAsync("aes_Key");
             const aesKey = await SecureStore.getItemAsync("aes_Key");
             if (!aesKey) {
@@ -184,19 +191,19 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
             const privateKeysData = await SecureStore.getItemAsync("private_keys");
             const privateWalletsJson: string[] = privateKeysData ? JSON.parse(privateKeysData) : [];
             if (privateWalletsJson.length > 0) {
-                const walletsWithoutProvider = await Promise.all(
+                const WalletsWithoutProvider = await Promise.all(
                     privateWalletsJson.map(async (json) => await Wallet.fromEncryptedJson(json, aesKey)));
-                const walletsWithProvider = walletsWithoutProvider.map((w) => w.connect(provider));
+                const WalletsWithProvider = WalletsWithoutProvider.map((w) => w.connect(provider));
 
-                setPrivateKeyAccount(walletsWithoutProvider);
+                setPrivateKeyAccount(WalletsWithoutProvider);
 
-                if (walletsWithProvider.length > 0) {
-                    setWalletWithProvider(walletsWithProvider[0]);
+                if (WalletsWithProvider.length > 0) {
+                    setWalletWithProvider(WalletsWithProvider[0]);
                     const network = await provider.getNetwork();
                     // setWalletWithProvider(walletWithProvider);
                     setWalletDetails({
-                        address: walletsWithProvider[0].address,
-                        index: walletsWithProvider[0] instanceof HDNodeWallet ? walletsWithProvider[0].index : 0,
+                        address: WalletsWithProvider[0].address,
+                        index: WalletsWithProvider[0] instanceof HDNodeWallet ? WalletsWithProvider[0].index : 0,
                         name: network.name || "Unknown Network",
                         chainId: network.chainId.toString(),
                         rpcUrls: [`https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`],
@@ -212,28 +219,29 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
             const srpData = await SecureStore.getItemAsync("SRP_wallet");
             const srpWalletsJson: string[] = srpData ? JSON.parse(srpData) : [];
             if (srpWalletsJson.length > 0) {
-                const walletsWithoutProvider = await Promise.all(
+                const WalletsWithoutProvider = await Promise.all(
                     srpWalletsJson.map(async (json) => await Wallet.fromEncryptedJson(json, aesKey)));
-                const walletsWithProvider = walletsWithoutProvider.map((w) => w.connect(provider));
+                const WalletsWithProvider = WalletsWithoutProvider.map((w) => w.connect(provider));
 
-                setDerivedAccounts(walletsWithoutProvider);
-                if (walletsWithProvider.length > 0) {
-                    setWalletWithProvider(walletsWithProvider[0]);
+                setDerivedAccounts(WalletsWithoutProvider);
+                if (WalletsWithProvider.length > 0) {
+                    setWalletWithProvider(WalletsWithProvider[0]);
                     const network = await provider.getNetwork();
-                    // setWalletWithProvider(walletWithProvider);
-                    setWalletDetails({
-                        address: walletsWithProvider[0].address,
-                        index: walletsWithProvider[0] instanceof HDNodeWallet ? walletsWithProvider[0].index : 0,
-                        name: network.name || "Unknown Network",
-                        chainId: network.chainId.toString(),
-                        rpcUrls: [`https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`],
-                        nativeCurrency: {
-                            name: "Ether",
-                            symbol: "ETH",
-                            decimals: 18,
-                        },
-                        blockExplorerUrls: ["https://sepolia.etherscan.io"]
-                    });
+                    if (walletWithProvider)
+                        // setWalletWithProvider(walletWithProvider);
+                        setWalletDetails({
+                            address: WalletsWithProvider[0].address,
+                            index: WalletsWithProvider[0] instanceof HDNodeWallet ? WalletsWithProvider[0].index : 0,
+                            name: network.name || "Unknown Network",
+                            chainId: network.chainId.toString(),
+                            rpcUrls: [`https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`],
+                            nativeCurrency: {
+                                name: "Ether",
+                                symbol: "ETH",
+                                decimals: 18,
+                            },
+                            blockExplorerUrls: ["https://sepolia.etherscan.io"]
+                        });
                 }
             }
             if (privateWalletsJson.length === 0 && srpWalletsJson.length === 0) {
@@ -269,7 +277,7 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const handleAuthenticaton = async (message: string): Promise<boolean> => {
+    const handleAuthentication = async (message: string): Promise<boolean> => {
 
         try {
             const { available, enrolled } = await handleCheckBiometricAvailability();
@@ -282,12 +290,26 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
                 setError("Please set up biometric authentication in your device settings");
                 return false;
             }
-            const auth = await LocalAuthentication.authenticateAsync();
+            const auth = await LocalAuthentication.authenticateAsync({
+                promptMessage: message,
+                cancelLabel: "Cancel",
+                disableDeviceFallback: false
+            });
             if (auth.success) {
                 setError("");
                 return true;
             } else {
-                setError("Authentication failed");
+                const errorMessages: Record<string, string> = {
+                    'unknown': "An unknown error occurred",
+                    'user_cancel': "Authentication was cancelled",
+                    'user_fallback': "User chose fallback authentication",
+                    'system_cancel': "Authentication was cancelled by system",
+                    'passcode_not_set': "Passcode is not set on this device",
+                    'not_available': "Biometric authentication is not available",
+                    'not_enrolled': "No biometric credentials enrolled",
+                    'lockout': "Too many failed attempts. Please try again later",
+                };
+                setError(errorMessages[auth.error || 'unknown'] || `Authentication failed: ${auth.error}`);
                 return false;
             }
         } catch (error) {
@@ -375,7 +397,7 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
 
     const handleTransactionsEth = async (_to: string, _value: string): Promise<string> => {
         try {
-            handleAuthenticaton("Authentication Required for Transactions");
+            handleAuthentication("Authentication Required for Transactions");
             if (!walletWithProvider?.provider || !walletWithProvider) {
                 throw new Error("Wallet not connected");
             }
