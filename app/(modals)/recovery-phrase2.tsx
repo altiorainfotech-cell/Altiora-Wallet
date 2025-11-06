@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,7 @@ import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 import { useWalletUi } from "../../context/WalletUiContext";
 
-export default function RecoveryPhraseModal() {
+export default function RecoveryPhraseModal2() {
   const router = useRouter();
   const [hidden, setHidden] = useState(false);
   const { recoveryPhraseWords: phrase } = useWalletUi();
@@ -116,3 +116,4 @@ const styles = StyleSheet.create({
   primaryBtn: { marginHorizontal: spacing.lg, marginTop: spacing.lg, backgroundColor: colors.primary, borderRadius: 12, alignItems: "center", paddingVertical: spacing.md },
   primaryText: { color: "white", fontWeight: "800" },
 });
+
