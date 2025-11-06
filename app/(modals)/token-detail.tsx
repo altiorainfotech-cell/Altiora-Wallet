@@ -173,14 +173,21 @@ export default function TokenDetailModal() {
                 <Text style={styles.actionText}>Send</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionBtn}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => router.push("/(modals)/swap") }>
                 <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
                   <Ionicons name="swap-horizontal" size={20} color="white" />
                 </View>
                 <Text style={styles.actionText}>Swap</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionBtn}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => {
+                // Placeholder bridge flow
+                try { 
+                  // @ts-ignore
+                  const Alert = require('react-native').Alert; 
+                  Alert.alert('Bridge', 'Bridge feature coming soon');
+                } catch {}
+              }}>
                 <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
                   <Ionicons name="link" size={20} color="white" />
                 </View>
