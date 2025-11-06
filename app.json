@@ -9,7 +9,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs camera access to scan QR codes for wallet addresses, importing private keys, and connecting to dApps.",
+        "NSPhotoLibraryUsageDescription": "This app needs photo library access to select QR code images for scanning wallet addresses.",
+        "NSFaceIDUsageDescription": "This app uses Face ID to securely access your wallet and authorize transactions."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,6 +45,19 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to access your Face ID biometric data."
+        }
+      ],
+      [
+        "expo-application",
+        {
+          "configureAndroidBackup": true
         }
       ]
     ],
