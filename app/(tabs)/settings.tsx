@@ -3,21 +3,110 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Switch, Alert } f
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 
 export default function Settings() {
+  const router = useRouter();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleBackup = () => {
+    router.push("/(modals)/recovery-phrase");
+  };
+
+  const handleBiometricToggle = (value: boolean) => {
+    setBiometricEnabled(value);
     Alert.alert(
-      "Backup Wallet",
-      "This will display your recovery phrase. Make sure you're in a private location.",
+      value ? "Biometric Enabled" : "Biometric Disabled",
+      value
+        ? "Your wallet is now protected with biometric authentication"
+        : "Biometric authentication has been disabled"
+    );
+  };
+
+  const handleNotificationToggle = (value: boolean) => {
+    setNotificationsEnabled(value);
+    Alert.alert(
+      value ? "Notifications Enabled" : "Notifications Disabled",
+      value
+        ? "You will now receive transaction alerts"
+        : "Transaction notifications have been disabled"
+    );
+  };
+
+  const handleChangePassword = () => {
+    Alert.alert(
+      "Change Password",
+      "This feature will allow you to update your wallet password",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Continue", onPress: () => Alert.alert("Feature", "Backup feature coming soon") }
+        {
+          text: "Continue",
+          onPress: () => Alert.alert("Coming Soon", "Password change functionality will be available soon")
+        }
       ]
+    );
+  };
+
+  const handleLanguage = () => {
+    Alert.alert(
+      "Language Selection",
+      "Choose your preferred language",
+      [
+        { text: "English", onPress: () => Alert.alert("Language", "English selected") },
+        { text: "Spanish", onPress: () => Alert.alert("Language", "Spanish selected") },
+        { text: "French", onPress: () => Alert.alert("Language", "French selected") },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleCurrency = () => {
+    Alert.alert(
+      "Currency Selection",
+      "Choose your preferred display currency",
+      [
+        { text: "USD", onPress: () => Alert.alert("Currency", "USD selected") },
+        { text: "EUR", onPress: () => Alert.alert("Currency", "EUR selected") },
+        { text: "GBP", onPress: () => Alert.alert("Currency", "GBP selected") },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleHelpSupport = () => {
+    Alert.alert(
+      "Help & Support",
+      "Get help with your wallet:\n\n• FAQ & Guides\n• Contact Support\n• Community Forum\n• Video Tutorials",
+      [
+        { text: "Visit FAQ", onPress: () => Alert.alert("Opening FAQ...") },
+        { text: "Contact Support", onPress: () => Alert.alert("Support", "Email: support@wallet.com") },
+        { text: "Close", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleTermsOfService = () => {
+    Alert.alert(
+      "Terms of Service",
+      "By using this wallet, you agree to:\n\n• Non-custodial nature of the service\n• Your responsibility for securing keys\n• No liability for lost funds\n• Compliance with local regulations",
+      [
+        { text: "Read Full Terms", onPress: () => Alert.alert("Opening terms...") },
+        { text: "Close", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleVersionInfo = () => {
+    Alert.alert(
+      "App Information",
+      "Non-Custodial Wallet v1.0.0\n\n" +
+      "Build: 100\n" +
+      "Released: 2025\n\n" +
+      "A secure, decentralized wallet where you control your private keys.",
+      [{ text: "OK" }]
     );
   };
 
@@ -59,13 +148,13 @@ export default function Settings() {
               </View>
               <Switch
                 value={biometricEnabled}
-                onValueChange={setBiometricEnabled}
+                onValueChange={handleBiometricToggle}
                 trackColor={{ false: colors.border, true: colors.primary + "80" }}
                 thumbColor={biometricEnabled ? colors.primary : colors.textDim}
               />
             </View>
 
-            <TouchableOpacity style={styles.item}>
+            <TouchableOpacity style={styles.item} onPress={handleChangePassword}>
               <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: "#FFD93D" + "20" }]}>
                   <Ionicons name="lock-closed" size={20} color="#FFD93D" />
@@ -95,13 +184,13 @@ export default function Settings() {
               </View>
               <Switch
                 value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
+                onValueChange={handleNotificationToggle}
                 trackColor={{ false: colors.border, true: colors.primary + "80" }}
                 thumbColor={notificationsEnabled ? colors.primary : colors.textDim}
               />
             </View>
 
-            <TouchableOpacity style={styles.item}>
+            <TouchableOpacity style={styles.item} onPress={handleLanguage}>
               <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: "#FF6B6B" + "20" }]}>
                   <Ionicons name="language" size={20} color="#FF6B6B" />
@@ -114,7 +203,7 @@ export default function Settings() {
               <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.item}>
+            <TouchableOpacity style={styles.item} onPress={handleCurrency}>
               <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: "#4ECDC4" + "20" }]}>
                   <Ionicons name="cash" size={20} color="#4ECDC4" />
@@ -132,7 +221,7 @@ export default function Settings() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
 
-            <TouchableOpacity style={styles.item}>
+            <TouchableOpacity style={styles.item} onPress={handleHelpSupport}>
               <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: colors.primary + "20" }]}>
                   <Ionicons name="help-circle" size={20} color={colors.primary} />
@@ -142,7 +231,7 @@ export default function Settings() {
               <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.item}>
+            <TouchableOpacity style={styles.item} onPress={handleTermsOfService}>
               <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: "#FFD93D" + "20" }]}>
                   <Ionicons name="document-text" size={20} color="#FFD93D" />
@@ -152,7 +241,7 @@ export default function Settings() {
               <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
             </TouchableOpacity>
 
-            <View style={styles.item}>
+            <TouchableOpacity style={styles.item} onPress={handleVersionInfo}>
               <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: "#4ECDC4" + "20" }]}>
                   <Ionicons name="information-circle" size={20} color="#4ECDC4" />
@@ -163,7 +252,7 @@ export default function Settings() {
                 </View>
               </View>
               <Text style={styles.versionText}>v1.0.0</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.warningBox}>
