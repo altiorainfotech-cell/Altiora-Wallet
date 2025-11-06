@@ -2,10 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, TextInput, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EthereumIcon } from "../../components/icons";
 import Sheet from "../../components/Sheet";
+import PrimaryButton from "../../components/PrimaryButton";
 import { useWalletUi } from "../../context/WalletUiContext";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
@@ -23,17 +24,35 @@ export default function Home() {
     nfts,
     totalPortfolioValue,
     portfolioChange24h,
-    addMockAccount
+    addMockAccount,
+    removeAccount,
+    recoveryPhraseWords
   } = useWalletUi();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [networksOpen, setNetworksOpen] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [selectedTab, setSelectedTab] = useState<"tokens" | "nfts">("tokens");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [tokenFilter, setTokenFilter] = useState<"all" | "gainers" | "losers">("all");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePhrase, setDeletePhrase] = useState("");
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyPhrase, setVerifyPhrase] = useState("");
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
 
   const active = accounts[activeIndex];
   const net = networks[networkIndex];
+
+  // Use images from assets/nft for NFT thumbnails
+  const nftAssetImages = useMemo(() => [
+    require("../../assets/nft/01.png"),
+    // require("../../assets/nft/02.png"), // add if you place 02.png
+    require("../../assets/nft/03.png"),
+    require("../../assets/nft/04.png"),
+    require("../../assets/nft/05.png"),
+    require("../../assets/nft/06.png"),
+  ], []);
 
   const copyAddress = async () => {
     if (active?.address) {
@@ -45,8 +64,25 @@ export default function Home() {
   const accountList = useMemo(
     () =>
       accounts.map((a, i) => (
-        <TouchableOpacity key={a.id} style={styles.listItem}
-          onPress={() => { setActiveIndex(i); setAccountsOpen(false); }}>
+        <TouchableOpacity
+          key={a.id}
+          style={styles.listItem}
+          onPress={() => {
+            if (i === activeIndex) {
+              setAccountsOpen(false);
+              return;
+            }
+            // Require phrase only when switching to an older account
+            if (i < activeIndex) {
+              setTargetIndex(i);
+              setVerifyPhrase("");
+              setVerifyOpen(true);
+            } else {
+              setActiveIndex(i);
+              setAccountsOpen(false);
+            }
+          }}
+        >
           <Text style={[styles.listTitle, i === activeIndex && { color: colors.primary }]}>{a.label}</Text>
           <Text style={styles.listSub}>{a.address}</Text>
         </TouchableOpacity>
@@ -72,6 +108,8 @@ export default function Home() {
     return tokens;
   }, [tokens, tokenFilter]);
 
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -91,7 +129,7 @@ export default function Home() {
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerIcon}>
+            <TouchableOpacity style={styles.headerIcon} onPress={() => setNotificationsOpen(true)}>
               <Ionicons name="notifications-outline" size={24} color={colors.text} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerIcon} onPress={() => router.push("/(tabs)/settings")}>
@@ -217,10 +255,14 @@ export default function Home() {
                       { id: 'nft-temp-5', name: 'Pudgy #9901', collection: 'Pudgy Penguins', color: '#6AC6FF' },
                       { id: 'nft-temp-6', name: 'mfers #101', collection: 'mfers', color: '#9E9E9E' },
                     ]
-              ).map((nft: any) => (
+              ).map((nft: any, idx: number) => (
                 <TouchableOpacity key={nft.id} style={styles.nftCard}>
                   <View style={[styles.nftArt, { backgroundColor: nft.color + "30" }]}>
-                    <Ionicons name="image-outline" size={28} color={nft.color} />
+                    <Image
+                      source={nftAssetImages[idx % nftAssetImages.length]}
+                      style={{ width: '100%', height: '100%', borderRadius: 8 }}
+                      resizeMode="cover"
+                    />
                   </View>
                   <Text numberOfLines={1} style={styles.nftName}>{nft.name}</Text>
                   <Text numberOfLines={1} style={styles.nftCollection}>{nft.collection}</Text>
@@ -236,6 +278,30 @@ export default function Home() {
       <Sheet visible={accountsOpen} onClose={() => setAccountsOpen(false)}>
         <Text style={styles.sheetTitle}>Your accounts</Text>
         <ScrollView style={{ marginTop: spacing.md }}>{accountList}</ScrollView>
+        <View style={{ height: spacing.md }} />
+        <PrimaryButton
+          title="Create New Account"
+          style={{ alignSelf: 'stretch' }}
+          icon={<Ionicons name="add" size={18} color="white" />}
+          onPress={() => {
+            addMockAccount();
+            setAccountsOpen(false);
+            router.push('/(modals)/recovery-phrase');
+          }}
+        />
+        {accounts.length > 1 && (
+          <View style={{ marginTop: spacing.sm }}>
+            <PrimaryButton
+              title="Delete Active Account"
+              style={{ alignSelf: 'stretch', backgroundColor: '#FF3B30' }}
+              icon={<Ionicons name="trash" size={18} color="white" />}
+              onPress={() => {
+                setDeletePhrase("");
+                setDeleteOpen(true);
+              }}
+            />
+          </View>
+        )}
       </Sheet>
 
       <Sheet visible={networksOpen} onClose={() => setNetworksOpen(false)}>
@@ -257,6 +323,119 @@ export default function Home() {
           <Text style={[styles.listTitle, tokenFilter === 'losers' && { color: colors.primary }]}>Losers</Text>
           <Text style={styles.listSub}>24h change {'<'} 0%</Text>
         </TouchableOpacity>
+      </Sheet>
+
+      <Sheet visible={notificationsOpen} onClose={() => setNotificationsOpen(false)}>
+        <Text style={styles.sheetTitle}>Notifications</Text>
+        {/* App updates */}
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={[styles.listTitle, { marginBottom: spacing.sm }]}>Updates</Text>
+          <Text style={styles.listSub}>No new updates</Text>
+        </View>
+
+        {/* Trending tokens */}
+        <View style={{ marginTop: spacing.lg }}>
+          <Text style={[styles.listTitle, { marginBottom: spacing.sm }]}>Trending</Text>
+          {(
+            [...tokens]
+              .sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h))
+              .slice(0, 5)
+          ).map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={styles.listItem}
+              onPress={() => {
+                setNotificationsOpen(false);
+                router.push(`/(modals)/token-detail?tokenId=${t.id}`);
+              }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={styles.listTitle}>{t.name}</Text>
+                <Text style={[styles.listTitle, { color: t.change24h >= 0 ? colors.success : colors.error }]}>
+                  {t.change24h >= 0 ? '+' : ''}{t.change24h}%
+                </Text>
+              </View>
+              <Text style={styles.listSub}>Tap to open details</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Sheet>
+
+      {/* Verify phrase before switching to older account */}
+      <Sheet visible={verifyOpen} onClose={() => setVerifyOpen(false)}>
+        <Text style={styles.sheetTitle}>Verify recovery phrase</Text>
+        <Text style={{ color: colors.textDim, marginTop: spacing.sm }}>
+          Enter your 12-word recovery phrase to switch to the selected account.
+        </Text>
+        <TextInput
+          value={verifyPhrase}
+          onChangeText={setVerifyPhrase}
+          placeholder="enter phrase here"
+          placeholderTextColor={colors.textDim}
+          multiline
+          style={{
+            marginTop: spacing.md,
+            minHeight: 90,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.card,
+            color: colors.text,
+            borderRadius: 12,
+            padding: spacing.md,
+            textAlignVertical: 'top'
+          }}
+        />
+        <View style={{ height: spacing.md }} />
+        <PrimaryButton
+          title="Confirm Switch"
+          icon={<Ionicons name="checkmark" size={18} color="white" />}
+          disabled={normalize(verifyPhrase) !== normalize(recoveryPhraseWords.join(' ')) || targetIndex == null}
+          onPress={() => {
+            if (targetIndex == null) return;
+            setActiveIndex(targetIndex);
+            setVerifyOpen(false);
+            setAccountsOpen(false);
+            setTargetIndex(null);
+            Alert.alert('Switched', 'Account switched successfully');
+          }}
+        />
+      </Sheet>
+
+      <Sheet visible={deleteOpen} onClose={() => setDeleteOpen(false)}>
+        <Text style={styles.sheetTitle}>Confirm deletion</Text>
+        <Text style={{ color: colors.textDim, marginTop: spacing.sm }}>
+          Enter your 12‑word recovery phrase to delete the active account and switch back to the previous one.
+        </Text>
+        <TextInput
+          value={deletePhrase}
+          onChangeText={setDeletePhrase}
+          placeholder="enter phrase here"
+          placeholderTextColor={colors.textDim}
+          multiline
+          style={{
+            marginTop: spacing.md,
+            minHeight: 90,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.card,
+            color: colors.text,
+            borderRadius: 12,
+            padding: spacing.md,
+            textAlignVertical: 'top'
+          }}
+        />
+        <View style={{ height: spacing.md }} />
+        <PrimaryButton
+          title="Confirm Delete"
+          icon={<Ionicons name="checkmark" size={18} color="white" />}
+          disabled={normalize(deletePhrase) !== normalize(recoveryPhraseWords.join(' '))}
+          onPress={() => {
+            removeAccount(activeIndex);
+            setDeleteOpen(false);
+            setAccountsOpen(false);
+            Alert.alert('Deleted', 'Account removed and switched to previous');
+          }}
+        />
       </Sheet>
     </SafeAreaView>
   );
