@@ -320,8 +320,6 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
     }
 
 
-
-
     const handleImportPrivateKeyEth = async (private_key: string) => {
         try {
             const importWallet = new Wallet(private_key);
@@ -393,7 +391,6 @@ export const AccountContext = ({ children }: { children: ReactNode }) => {
             return [];
         }
     }
-
 
     const handleTransactionsEth = async (_to: string, _value: string): Promise<string> => {
         try {
