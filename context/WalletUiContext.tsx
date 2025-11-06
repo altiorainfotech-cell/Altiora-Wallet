@@ -35,6 +35,8 @@ type WalletUiContextValue = {
   totalPortfolioValue: string;
   portfolioChange24h: number;
   addMockAccount: () => void;
+  removeAccount: (index: number) => void;
+  recoveryPhraseWords: string[];
 };
 
 const Ctx = createContext<WalletUiContextValue | undefined>(undefined);
@@ -261,6 +263,25 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     return change;
   }, [tokens, totalPortfolioValue]);
 
+  // Demo-only 12-word recovery phrase used across UI flows
+  const recoveryPhraseWords = useMemo(
+    () => [
+      "candy",
+      "maple",
+      "cake",
+      "sugar",
+      "pudding",
+      "cream",
+      "honey",
+      "rich",
+      "smooth",
+      "crumble",
+      "sweet",
+      "treat",
+    ],
+    []
+  );
+
   const generateMockAddress = (existing: Set<string>) => {
     const hex = '0123456789abcdef';
     let addr = '';
@@ -283,6 +304,21 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     setActiveIndex(next - 1);
   };
 
+  const removeAccount = (index: number) => {
+    // Keep at least one account
+    setAccounts(prev => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, i) => i !== index);
+      // Adjust active index relative to removed index
+      setActiveIndex(curr => {
+        if (curr === index) return Math.max(0, index - 1);
+        if (curr > index) return curr - 1;
+        return curr;
+      });
+      return next;
+    });
+  };
+
   const value = useMemo(() => ({
     accounts,
     activeIndex,
@@ -294,7 +330,9 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     nfts,
     totalPortfolioValue,
     portfolioChange24h,
-    addMockAccount
+    addMockAccount,
+    removeAccount,
+    recoveryPhraseWords
   }),
     [accounts, activeIndex, networks, networkIndex, tokens, nfts, totalPortfolioValue, portfolioChange24h]);
 

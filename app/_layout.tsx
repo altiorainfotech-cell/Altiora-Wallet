@@ -57,9 +57,10 @@ export default function RootLayout() {
               <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="(modals)/send" options={{ presentation: "modal" }} />
-                <Stack.Screen name="(modals)/receive" options={{ presentation: "modal" }} />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(modals)/send" options={{ presentation: "modal" }} />
+              <Stack.Screen name="(modals)/receive" options={{ presentation: "modal" }} />
+              <Stack.Screen name="(modals)/import-wallet" options={{ presentation: "modal" }} />
               </Stack>
             </WalletUiProvider>
           </SafeAreaProvider>

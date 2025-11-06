@@ -1,9 +1,12 @@
 import { setItem } from '@/lib/storage';
 import spacing from '@/theme/spacing';
+import colors from '@/theme/colors';
+import Sheet from '@/components/Sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useWalletUi } from '@/context/WalletUiContext';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -36,7 +39,7 @@ const slides: OnboardingSlide[] = [
     subtitle:
       'Your trusted companion into the world of decentralized finance. Digital wallet for managing your crypto and NFTs starts now.',
     image: require('@/assets/images/wallet.png'),
-    primaryButton: 'Continue',
+    primaryButton: 'Next',
   },
   {
     id: '2',
@@ -48,12 +51,11 @@ const slides: OnboardingSlide[] = [
   },
   {
     id: '3',
-    title: 'Import a Wallet',
+    title: 'Your Recovery Phrase',
     subtitle:
-      'Already have a wallet? Import it using your secret recovery phrase or private keys to access your assets.',
+      'We will generate a secure recovery phrase for you. Keep it safe — it’s the only way to restore your wallet.',
     image: require('@/assets/images/import_wallet.png'),
-    primaryButton: 'Import Wallet',
-    secondaryButton: 'Skip',
+    primaryButton: 'Next',
   },
   {
     id: '4',
@@ -61,7 +63,7 @@ const slides: OnboardingSlide[] = [
     subtitle:
       'Your wallet is confirmed and ready! Manage your crypto, NFTs, and DeFi assets all in one place.',
     image: require('@/assets/images/confirmation.png'),
-    primaryButton: 'Get Started',
+    primaryButton: 'Next',
   },
   {
     id: '5',
@@ -69,17 +71,21 @@ const slides: OnboardingSlide[] = [
     subtitle:
       'Secure your financial future with a few easy steps. Your decentralized wallet awaits.',
     image: require('@/assets/images/wallet_alt.png'),
-    primaryButton: 'Create Wallet',
-    secondaryButton: "Got a wallet? Let's import it",
+    primaryButton: 'Continue',
+    secondaryButton: 'Import from wallet',
   },
 ];
 
+ 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ openImport?: string }>();
   const { width } = useWindowDimensions();
+  const { addMockAccount } = useWalletUi();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<OnboardingSlide>>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const [importOpen, setImportOpen] = useState(false);
 
   // Responsive sizing
   const isLargeScreen = width > 768;
@@ -94,26 +100,29 @@ export default function OnboardingScreen() {
   ).current;
 
   const viewConfig = useRef<ViewabilityConfig>({ viewAreaCoveragePercentThreshold: 50 }).current;
+  // For web deep-linking: open the import sheet if asked
+  React.useEffect(() => {
+    // @ts-ignore already imported via alias
+    if ((params as any)?.openImport === '1') {
+      setImportOpen(true);
+    }
+  }, [params]);
 
   const handlePrimaryAction = async () => {
     if (currentIndex < slides.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
-    } else {
-      // Last slide - Create Wallet
-      try {
-        await setItem('hasOnboarded', 'true');
-      } catch (e) {}
-      router.replace('/(tabs)');
+      return;
     }
+    // Last slide - Continue into app (create wallet flow)
+    try {
+      await setItem('hasOnboarded', 'true');
+    } catch (e) {}
+    router.replace('/(tabs)');
   };
 
   const handleSecondaryAction = () => {
-    if (currentIndex === 2) {
-      // Import screen - skip to next
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
-    } else if (currentIndex === slides.length - 1) {
-      // Last screen - go to import screen
-      flatListRef.current?.scrollToIndex({ index: 2 });
+    if (currentIndex === slides.length - 1) {
+      setImportOpen(true);
     }
   };
 
@@ -241,6 +250,14 @@ export default function OnboardingScreen() {
         showsHorizontalScrollIndicator={false}
         bounces={false}
         keyExtractor={(item) => item.id}
+        getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            try {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+            } catch {}
+          }, 100);
+        }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
           useNativeDriver: false,
         })}
@@ -248,6 +265,43 @@ export default function OnboardingScreen() {
         onViewableItemsChanged={viewableItemsChanged}
         viewabilityConfig={viewConfig}
       />
+
+      {/* Import options sheet (from last screen) */}
+      <Sheet visible={importOpen} onClose={() => setImportOpen(false)}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800' }}>Add Account</Text>
+          <TouchableOpacity onPress={() => setImportOpen(false)}>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={{ color: colors.text, opacity: 0.9, fontWeight: '800', marginBottom: 8 }}>Create a new account</Text>
+          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { setImportOpen(false); addMockAccount(); router.replace('/(tabs)'); router.push('/(modals)/recovery-phrase'); }}>
+            <Text style={{ color: colors.primary, fontSize: 16 }}>Ethereum account</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { setImportOpen(false); addMockAccount(); router.replace('/(tabs)'); }}>
+            <Text style={{ color: colors.primary, fontSize: 16 }}>Solana account</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={{ color: colors.text, opacity: 0.9, fontWeight: '800', marginBottom: 8 }}>Import a wallet or account</Text>
+          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { setImportOpen(false); router.push('/(modals)/import-wallet'); }}>
+            <Text style={{ color: colors.primary, fontSize: 16 }}>Secret Recovery Phrase</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { /* TODO: private key import */ }}>
+            <Text style={{ color: colors.primary, fontSize: 16 }}>Private Key</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={{ color: colors.text, opacity: 0.9, fontWeight: '800', marginBottom: 8 }}>Connect an account</Text>
+          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { /* TODO: hardware wallet connect */ }}>
+            <Text style={{ color: colors.primary, fontSize: 16 }}>Hardware wallet</Text>
+          </TouchableOpacity>
+        </View>
+      </Sheet>
     </View>
   );
 }
@@ -329,6 +383,9 @@ const styles = StyleSheet.create({
   },
   buttonsContainer: {
     gap: spacing.md,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 520,
   },
   primaryButton: {
     backgroundColor: '#1F1F3D',
@@ -346,6 +403,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    width: '100%',
   },
   buttonIcon: {
     marginRight: spacing.sm,
@@ -356,11 +414,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   secondaryButton: {
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: spacing.xl,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: '100%'
   },
   secondaryButtonText: {
     color: 'white',
@@ -388,3 +450,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+
