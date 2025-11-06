@@ -277,7 +277,7 @@ export default function OnboardingScreen() {
 
         <View style={{ marginTop: spacing.md }}>
           <Text style={{ color: colors.text, opacity: 0.9, fontWeight: '800', marginBottom: 8 }}>Create a new account</Text>
-          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { setImportOpen(false); addMockAccount(); router.replace('/(tabs)'); router.push('/(modals)/recovery-phrase'); }}>
+          <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { setImportOpen(false); addMockAccount(); router.replace('/(tabs)'); router.push('/(modals)/recovery-phrase2'); }}>
             <Text style={{ color: colors.primary, fontSize: 16 }}>Ethereum account</Text>
           </TouchableOpacity>
           <TouchableOpacity style={{ paddingVertical: 10 }} onPress={() => { setImportOpen(false); addMockAccount(); router.replace('/(tabs)'); }}>

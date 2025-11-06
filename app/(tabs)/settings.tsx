@@ -13,7 +13,7 @@ export default function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleBackup = () => {
-    router.push("/(modals)/recovery-phrase");
+    router.push("/(modals)/recovery-phrase2");
   };
 
   const handleBiometricToggle = (value: boolean) => {
