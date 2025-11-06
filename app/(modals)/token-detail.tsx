@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { EthereumIcon } from "../../components/icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions } from "react-native";
