@@ -113,7 +113,7 @@ export default function ChatListScreen() {
         data={filtered}
         keyExtractor={(i) => i.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: spacing.lg }}
+        contentContainerStyle={{ paddingBottom: 140 }}
       />
 
       {/* Actions sheet */}

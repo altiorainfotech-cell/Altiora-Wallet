@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
 
 export type UiAccount = { id: string; label: string; address: string; balance: string };
 export type UiNetwork = { id: string; name: string; symbol: string };
@@ -293,7 +293,7 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     return addr;
   };
 
-  const addMockAccount = () => {
+  const addMockAccount = useCallback(() => {
     const next = accounts.length + 1;
     const existing = new Set(accounts.map(a => a.address));
     const address = generateMockAddress(existing);
@@ -302,22 +302,22 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       { id: `acc-${next - 1}`, label: `Account ${next}`, address, balance: "0.0000" }
     ]);
     setActiveIndex(next - 1);
-  };
+  }, [accounts]);
 
-  const removeAccount = (index: number) => {
+  const removeAccount = useCallback((index: number) => {
     // Keep at least one account
     setAccounts(prev => {
       if (prev.length <= 1) return prev;
-      const next = prev.filter((_, i) => i !== index);
-      // Adjust active index relative to removed index
-      setActiveIndex(curr => {
-        if (curr === index) return Math.max(0, index - 1);
-        if (curr > index) return curr - 1;
-        return curr;
-      });
-      return next;
+      return prev.filter((_, i) => i !== index);
     });
-  };
+
+    // Adjust active index in a separate state update
+    setActiveIndex(curr => {
+      if (curr === index) return Math.max(0, index - 1);
+      if (curr > index) return curr - 1;
+      return curr;
+    });
+  }, []);
 
   const value = useMemo(() => ({
     accounts,
@@ -334,7 +334,7 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     removeAccount,
     recoveryPhraseWords
   }),
-    [accounts, activeIndex, networks, networkIndex, tokens, nfts, totalPortfolioValue, portfolioChange24h]);
+    [accounts, activeIndex, networks, networkIndex, tokens, nfts, totalPortfolioValue, portfolioChange24h, addMockAccount, removeAccount, recoveryPhraseWords]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
