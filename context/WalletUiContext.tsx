@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 export type UiAccount = { id: string; label: string; address: string; balance: string };
 export type UiNetwork = { id: string; name: string; symbol: string };
@@ -7,7 +7,7 @@ export type UiToken = {
   name: string;
   symbol: string;
   icon: string; // Ionicons name or 'custom'
-  iconType?: 'ionicon' | 'custom'; // Type of icon
+  iconType?: 'ionicon' | 'custom'; // Type of icon  
   balance: string;
   usdValue: string;
   change24h: number; // percentage
@@ -21,6 +21,21 @@ export type UiNft = {
   collection: string;
   color: string; // used for placeholder tile background
   usdValue?: string;
+};
+
+export type WatchlistItem = {
+  tokenId: string;
+  addedAt: number;
+  stopLoss?: {
+    enabled: boolean;
+    price: string; // USD price to trigger stop loss
+    percentage?: number; // percentage drop from current price
+  };
+  priceAlert?: {
+    enabled: boolean;
+    targetPrice: string;
+    condition: 'above' | 'below';
+  };
 };
 
 type WalletUiContextValue = {
@@ -37,6 +52,13 @@ type WalletUiContextValue = {
   addMockAccount: () => void;
   removeAccount: (index: number) => void;
   recoveryPhraseWords: string[];
+  watchlist: WatchlistItem[];
+  addToWatchlist: (tokenId: string) => void;
+  removeFromWatchlist: (tokenId: string) => void;
+  isInWatchlist: (tokenId: string) => boolean;
+  setStopLoss: (tokenId: string, price: string, percentage?: number) => void;
+  removeStopLoss: (tokenId: string) => void;
+  setPriceAlert: (tokenId: string, targetPrice: string, condition: 'above' | 'below') => void;
 };
 
 const Ctx = createContext<WalletUiContextValue | undefined>(undefined);
@@ -319,6 +341,59 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     });
   }, []);
 
+  // Watchlist state and functions
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+
+  const addToWatchlist = useCallback((tokenId: string) => {
+    setWatchlist(prev => {
+      // Don't add if already in watchlist
+      if (prev.some(item => item.tokenId === tokenId)) return prev;
+      return [...prev, { tokenId, addedAt: Date.now() }];
+    });
+  }, []);
+
+  const removeFromWatchlist = useCallback((tokenId: string) => {
+    setWatchlist(prev => prev.filter(item => item.tokenId !== tokenId));
+  }, []);
+
+  const isInWatchlist = useCallback((tokenId: string) => {
+    return watchlist.some(item => item.tokenId === tokenId);
+  }, [watchlist]);
+
+  const setStopLoss = useCallback((tokenId: string, price: string, percentage?: number) => {
+    setWatchlist(prev => prev.map(item => {
+      if (item.tokenId === tokenId) {
+        return {
+          ...item,
+          stopLoss: { enabled: true, price, percentage }
+        };
+      }
+      return item;
+    }));
+  }, []);
+
+  const removeStopLoss = useCallback((tokenId: string) => {
+    setWatchlist(prev => prev.map(item => {
+      if (item.tokenId === tokenId) {
+        const { stopLoss, ...rest } = item;
+        return rest;
+      }
+      return item;
+    }));
+  }, []);
+
+  const setPriceAlert = useCallback((tokenId: string, targetPrice: string, condition: 'above' | 'below') => {
+    setWatchlist(prev => prev.map(item => {
+      if (item.tokenId === tokenId) {
+        return {
+          ...item,
+          priceAlert: { enabled: true, targetPrice, condition }
+        };
+      }
+      return item;
+    }));
+  }, []);
+
   const value = useMemo(() => ({
     accounts,
     activeIndex,
@@ -332,9 +407,16 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     portfolioChange24h,
     addMockAccount,
     removeAccount,
-    recoveryPhraseWords
+    recoveryPhraseWords,
+    watchlist,
+    addToWatchlist,
+    removeFromWatchlist,
+    isInWatchlist,
+    setStopLoss,
+    removeStopLoss,
+    setPriceAlert
   }),
-    [accounts, activeIndex, networks, networkIndex, tokens, nfts, totalPortfolioValue, portfolioChange24h, addMockAccount, removeAccount, recoveryPhraseWords]);
+    [accounts, activeIndex, networks, networkIndex, tokens, nfts, totalPortfolioValue, portfolioChange24h, addMockAccount, removeAccount, recoveryPhraseWords, watchlist, addToWatchlist, removeFromWatchlist, isInWatchlist, setStopLoss, removeStopLoss, setPriceAlert]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
