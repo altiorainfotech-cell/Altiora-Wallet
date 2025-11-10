@@ -6,17 +6,16 @@ import { useRouter } from "expo-router";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 import { telegramEnabled } from "../../lib/telegram";
-import { events } from "../../lib/events";
 import Sheet from "../../components/Sheet";
-
-type ChatPreview = { id: string; name: string; last: string; time: string; unread?: number; pinned?: boolean; muted?: boolean; archived?: boolean };
-
-const SAMPLE_CHATS: ChatPreview[] = [
-  { id: "aman", name: "Aman", last: "Arre bhai, market ka kya scene...", time: "09:12", unread: 2 },
-  { id: "priya", name: "Priya", last: "Kal ke dip me entry li thi!", time: "10:01" },
-  { id: "ravi", name: "Ravi", last: "WBTC breakout lag raha hai.", time: "08:44", unread: 1 },
-  { id: "neha", name: "Neha", last: "Pepe me thoda scalp mara.", time: "12:21" },
-];
+import {
+  ChatPreview,
+  ensureChatThread,
+  getChatPreviews,
+  getChatState,
+  markThreadRead,
+  onChatStateChange,
+  updateThreadMeta,
+} from "../../lib/chat-storage";
 
 export default function ChatListScreen() {
   const router = useRouter();
@@ -25,28 +24,34 @@ export default function ChatListScreen() {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [selected, setSelected] = useState<ChatPreview | null>(null);
+  const [chats, setChats] = useState<ChatPreview[]>([]);
 
-  const [chats, setChats] = useState<ChatPreview[]>(() => {
-    const base = telegramEnabled
-      ? [{ id: 'telegram', name: 'Telegram', last: 'Connected', time: 'now', pinned: true } as ChatPreview, ...SAMPLE_CHATS]
-      : SAMPLE_CHATS;
-    return base.map(c => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 }));
-  });
-
-  // listen for new messages to bump unread
   useEffect(() => {
-    const offNew = events.on<{ id: string }>('chat:newMessage', ({ id }) => {
-      setChats(prev => prev.map(c => c.id === id ? { ...c, unread: (c.unread || 0) + 1 } : c));
+    let active = true;
+    getChatState().then(state => {
+      if (!active) return;
+      setChats(getChatPreviews(state));
     });
-    const offRead = events.on<{ id: string }>('chat:read', ({ id }) => {
-      setChats(prev => prev.map(c => c.id === id ? { ...c, unread: 0 } : c));
+    const off = onChatStateChange(state => {
+      if (!active) return;
+      setChats(getChatPreviews(state));
     });
-    return () => { offNew(); offRead(); };
+    return () => { active = false; off(); };
+  }, []);
+
+  useEffect(() => {
+    if (!telegramEnabled) return;
+    ensureChatThread("telegram", "Telegram").catch(() => {});
   }, []);
 
   const ordered = useMemo(() => {
     const visible = chats.filter(c => !c.archived);
-    return [...visible].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    return [...visible].sort((a, b) => {
+      if (a.pinned !== b.pinned) {
+        return a.pinned ? -1 : 1;
+      }
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
   }, [chats]);
 
   const filtered = useMemo(() => {
@@ -129,7 +134,8 @@ export default function ChatListScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             onPress={() => {
-              setChats(prev => prev.map(c => c.id === selected.id ? { ...c, pinned: !c.pinned } : c));
+              updateThreadMeta(selected.id, { pinned: !selected.pinned }).catch(() => {});
+              setSelected(prev => prev ? { ...prev, pinned: !prev.pinned } : prev);
               setActionsOpen(false);
             }}
           >
@@ -146,7 +152,8 @@ export default function ChatListScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             onPress={() => {
-              setChats(prev => prev.map(c => c.id === selected.id ? { ...c, muted: !c.muted } : c));
+              updateThreadMeta(selected.id, { muted: !selected.muted }).catch(() => {});
+              setSelected(prev => prev ? { ...prev, muted: !prev.muted } : prev);
               setActionsOpen(false);
             }}
           >
@@ -163,7 +170,11 @@ export default function ChatListScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             onPress={() => {
-              setChats(prev => prev.map(c => c.id === selected.id ? { ...c, archived: !c.archived, unread: 0 } : c));
+              updateThreadMeta(selected.id, { archived: !selected.archived }).catch(() => {});
+              if (!selected.archived) {
+                markThreadRead(selected.id).catch(() => {});
+              }
+              setSelected(prev => prev ? { ...prev, archived: !prev.archived, unread: 0 } : prev);
               setActionsOpen(false);
             }}
           >
@@ -196,7 +207,7 @@ export default function ChatListScreen() {
                   style={styles.itemLeft}
                   onPress={() => {
                     setArchivedOpen(false);
-                    events.emit('chat:read', { id: item.id });
+                    markThreadRead(item.id).catch(() => {});
                     router.push(`/(modals)/chat-thread?id=${item.id}`);
                   }}
                 >
@@ -212,7 +223,7 @@ export default function ChatListScreen() {
                   <Text style={styles.time}>{item.time}</Text>
                   <TouchableOpacity
                     style={styles.unarchiveBtn}
-                    onPress={() => setChats(prev => prev.map(c => c.id === item.id ? { ...c, archived: false } : c))}
+                    onPress={() => updateThreadMeta(item.id, { archived: false }).catch(() => {})}
                   >
                     <Ionicons name="arrow-up-circle-outline" size={16} color={colors.primary} />
                     <Text style={{ color: colors.primary, fontWeight: '700' }}>Unarchive</Text>
