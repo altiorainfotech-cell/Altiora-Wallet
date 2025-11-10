@@ -1,50 +1,46 @@
-# Welcome to your Expo app 👋
-
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
-
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+Altiora Wallet - Feature Analysis & Issues Report
+App Overview
+This is a cryptocurrency wallet mobile application built with React Native and Expo. It's designed for managing crypto assets, NFTs, and interacting with decentralized applications (dApps).
+✨ Key Features
+1. Wallet Management
+Create New Wallets: Generate Ethereum wallets with HD (Hierarchical Deterministic) wallet support
+Import Wallets: Support for importing via Secret Recovery Phrase (SRP)
+Multi-Account Support: Create and manage multiple accounts within the same wallet
+Biometric Security: Face ID/Fingerprint authentication for accessing wallets
+Secure Storage: Encrypted storage using expo-secure-store with AES encryption
+2. Asset Management
+Token Portfolio: Display and manage multiple cryptocurrencies (ETH, USDC, USDT, BNB, PEPE, WBTC, etc.)
+NFT Gallery: View and manage NFT collections with visual thumbnails
+Portfolio Tracking: Real-time portfolio value calculation with 24h change percentages
+Token Filtering: Filter tokens by "all", "gainers", or "losers"
+3. Blockchain Operations
+Send Transactions: Transfer crypto assets to other addresses
+Receive Assets: Generate QR codes for receiving payments
+Token Swaps: Built-in DEX integration (using 0x protocol API)
+Staking: Stake tokens for rewards
+Buy Crypto: Integrated buy functionality
+4. Multi-Network Support
+Sepolia (ETH testnet)
+Polygon (MATIC)
+Base
+Uses Alchemy API for blockchain RPC connections
+5. dApp Integration
+WalletConnect: Connect to decentralized applications
+Transaction Confirmation: Review and approve dApp transactions
+QR Code Scanner: Scan QR codes for addresses and dApp connections
+6. Security Features
+Recovery Phrase Management: Secure display and verification of 12-word recovery phrases
+Biometric Authentication: Face ID/Touch ID for wallet access
+Account Deletion Protection: Requires recovery phrase verification to delete accounts
+Account Switching Verification: Requires phrase verification when switching to older accounts
+7. User Interface
+Tab Navigation: Home, Explore, Chat, Settings
+Modal Screens: Send, Receive, Swap, Stake, Buy, Token Details, etc.
+Dark/Light Mode Support: Automatic theme switching
+Haptic Feedback: Touch feedback throughout the app
+Animated Onboarding: Multi-slide introduction flow
+8. Chat Feature
+AI-powered chat for crypto assistance
+Thread-based conversations
+Chat history management/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
