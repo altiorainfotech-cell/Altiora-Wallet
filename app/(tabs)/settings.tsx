@@ -270,7 +270,7 @@ export default function Settings() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   gradient: { flex: 1 },
-  container: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  container: { padding: spacing.lg, paddingBottom: 140 },
 
   header: { marginBottom: spacing.lg },
   title: { color: colors.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
