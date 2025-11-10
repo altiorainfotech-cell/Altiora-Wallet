@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Switch, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,11 +6,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
+import { isAuthed, logout } from "../../lib/api";
 
 export default function Settings() {
   const router = useRouter();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const authed = useMemo(() => isAuthed(), []);
 
   const handleBackup = () => {
     router.push("/(modals)/recovery-phrase2");
@@ -215,6 +217,52 @@ export default function Settings() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
             </TouchableOpacity>
+          </View>
+
+          {/* Account Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            {!authed ? (
+              <>
+                <TouchableOpacity style={styles.item} onPress={() => router.push('/auth/login')}>
+                  <View style={styles.itemLeft}>
+                    <View style={[styles.iconContainer, { backgroundColor: colors.primary + "20" }]}>
+                      <Ionicons name="log-in" size={20} color={colors.primary} />
+                    </View>
+                    <View>
+                      <Text style={styles.itemTitle}>Login</Text>
+                      <Text style={styles.itemDesc}>Access your account</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.item} onPress={() => router.push('/auth/register')}>
+                  <View style={styles.itemLeft}>
+                    <View style={[styles.iconContainer, { backgroundColor: "#4ECDC4" + "20" }]}>
+                      <Ionicons name="person-add" size={20} color="#4ECDC4" />
+                    </View>
+                    <View>
+                      <Text style={styles.itemTitle}>Register</Text>
+                      <Text style={styles.itemDesc}>Create a new account</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.item} onPress={async () => { await logout(); Alert.alert('Logged out'); }}>
+                <View style={styles.itemLeft}>
+                  <View style={[styles.iconContainer, { backgroundColor: "#FF6B6B" + "20" }]}>
+                    <Ionicons name="log-out" size={20} color="#FF6B6B" />
+                  </View>
+                  <View>
+                    <Text style={styles.itemTitle}>Logout</Text>
+                    <Text style={styles.itemDesc}>Sign out from this device</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* About Section */}

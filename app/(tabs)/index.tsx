@@ -28,7 +28,10 @@ export default function Home() {
     portfolioChange24h,
     addMockAccount,
     removeAccount,
-    recoveryPhraseWords
+    recoveryPhraseWords,
+    addToWatchlist,
+    removeFromWatchlist,
+    isInWatchlist
   } = useWalletUi();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [networksOpen, setNetworksOpen] = useState(false);
@@ -148,6 +151,15 @@ export default function Home() {
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/(modals)/watchlist" as any);
+              }}
+            >
+              <Ionicons name="star-outline" size={24} color={colors.text} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerIcon}
               onPress={() => {
@@ -364,57 +376,75 @@ export default function Home() {
           {selectedTab === "tokens" ? (
             <>
               {filteredTokens.map((token) => (
-                <Pressable
-                  key={token.id}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/(modals)/token-detail?tokenId=${token.id}`);
-                  }}
-                  style={({ pressed }) => [
-                    styles.tokenItem,
-                    pressed && styles.tokenItemPressed
-                  ]}
-                >
-                  <LinearGradient
-                    colors={[colors.card, colors.card + 'DD']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.tokenItemGradient}
+                <View key={token.id} style={styles.tokenItemWrapper}>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(`/(modals)/token-detail?tokenId=${token.id}`);
+                    }}
+                    style={({ pressed }) => [
+                      styles.tokenItem,
+                      pressed && styles.tokenItemPressed
+                    ]}
                   >
-                    <View style={styles.tokenLeft}>
-                      <View style={[styles.tokenIconContainer, { backgroundColor: token.color + "20" }]}>
-                        {token.iconType === 'custom' && token.icon === 'ethereum' ? (
-                          <EthereumIcon size={24} />
-                        ) : (
-                          <Ionicons name={token.icon as any} size={24} color={token.color} />
-                        )}
-                      </View>
-                      <View style={styles.tokenInfo}>
-                        <Text style={styles.tokenName}>{token.name}</Text>
-                        <View style={styles.tokenChange}>
-                          <View style={[styles.changePill, { backgroundColor: token.change24h >= 0 ? colors.success + '15' : colors.error + '15' }]}>
-                            <Ionicons
-                              name={token.change24h >= 0 ? "arrow-up" : "arrow-down"}
-                              size={10}
-                              color={token.change24h >= 0 ? colors.success : colors.error}
-                            />
-                            <Text style={[styles.tokenChangeText, { color: token.change24h >= 0 ? colors.success : colors.error }]}>
-                              {token.change24h >= 0 ? "+" : ""}{token.change24h.toFixed(2)}%
-                            </Text>
+                    <LinearGradient
+                      colors={[colors.card, colors.card + 'DD']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.tokenItemGradient}
+                    >
+                      <View style={styles.tokenLeft}>
+                        <View style={[styles.tokenIconContainer, { backgroundColor: token.color + "20" }]}>
+                          {token.iconType === 'custom' && token.icon === 'ethereum' ? (
+                            <EthereumIcon size={24} />
+                          ) : (
+                            <Ionicons name={token.icon as any} size={24} color={token.color} />
+                          )}
+                        </View>
+                        <View style={styles.tokenInfo}>
+                          <Text style={styles.tokenName}>{token.name}</Text>
+                          <View style={styles.tokenChange}>
+                            <View style={[styles.changePill, { backgroundColor: token.change24h >= 0 ? colors.success + '15' : colors.error + '15' }]}>
+                              <Ionicons
+                                name={token.change24h >= 0 ? "arrow-up" : "arrow-down"}
+                                size={10}
+                                color={token.change24h >= 0 ? colors.success : colors.error}
+                              />
+                              <Text style={[styles.tokenChangeText, { color: token.change24h >= 0 ? colors.success : colors.error }]}>
+                                {token.change24h >= 0 ? "+" : ""}{token.change24h.toFixed(2)}%
+                              </Text>
+                            </View>
                           </View>
                         </View>
                       </View>
-                    </View>
-                    <View style={styles.tokenRight}>
-                      <Text style={styles.tokenValue}>
-                        {balanceVisible ? `$${token.usdValue}` : '••••'}
-                      </Text>
-                      <Text style={styles.tokenBalance}>
-                        {balanceVisible ? `${token.balance} ${token.symbol}` : '••••'}
-                      </Text>
-                    </View>
-                  </LinearGradient>
-                </Pressable>
+                      <View style={styles.tokenRight}>
+                        <Text style={styles.tokenValue}>
+                          {balanceVisible ? `$${token.usdValue}` : '••••'}
+                        </Text>
+                        <Text style={styles.tokenBalance}>
+                          {balanceVisible ? `${token.balance} ${token.symbol}` : '••••'}
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </Pressable>
+                  <TouchableOpacity
+                    style={styles.watchlistButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      if (isInWatchlist(token.id)) {
+                        removeFromWatchlist(token.id);
+                      } else {
+                        addToWatchlist(token.id);
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name={isInWatchlist(token.id) ? "star" : "star-outline"}
+                      size={20}
+                      color={isInWatchlist(token.id) ? colors.primary : colors.textDim}
+                    />
+                  </TouchableOpacity>
+                </View>
               ))}
             </>
           ) : (
@@ -941,9 +971,12 @@ const styles = StyleSheet.create({
   },
 
   // Token Item
-  tokenItem: {
+  tokenItemWrapper: {
+    position: "relative",
     marginHorizontal: spacing.lg,
     marginVertical: spacing.xs,
+  },
+  tokenItem: {
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -957,6 +990,25 @@ const styles = StyleSheet.create({
   tokenItemPressed: {
     opacity: 0.7,
     transform: [{ scale: 0.98 }]
+  },
+  watchlistButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10
   },
   tokenItemGradient: {
     flexDirection: "row",
