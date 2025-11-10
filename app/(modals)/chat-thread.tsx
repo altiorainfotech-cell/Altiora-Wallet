@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -7,83 +7,117 @@ import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 import { sendTelegramMessage, startTelegramPolling, telegramEnabled } from "../../lib/telegram";
 import { events } from "../../lib/events";
+import {
+  appendMessageToThread,
+  ChatMessage,
+  ensureChatThread,
+  getChatState,
+  markThreadRead,
+  onChatStateChange,
+  StoredChatThread,
+} from "../../lib/chat-storage";
 
-type ChatMessage = { id: string; sender: string; text: string; time: string; outgoing?: boolean };
-
-const SAMPLE_THREADS: Record<string, { name: string; messages: ChatMessage[] }>
-  = {
-    aman: {
-      name: "Aman",
-      messages: [
-        { id: "1", sender: "Aman", text: "Arre bhai, market ka kya scene hai aaj?", time: "09:12" },
-        { id: "2", sender: "You", text: "ETH green me dikh raha hai.", time: "09:13", outgoing: true },
-        { id: "3", sender: "Aman", text: "Toh thoda buy karte?", time: "09:14" },
-      ]
-    },
-    priya: {
-      name: "Priya",
-      messages: [
-        { id: "1", sender: "Priya", text: "Kal ke dip me entry li thi!", time: "10:01" },
-        { id: "2", sender: "You", text: "Nice, average price achha ho gaya hoga!", time: "10:02", outgoing: true },
-      ]
-    },
-    ravi: {
-      name: "Ravi",
-      messages: [
-        { id: "1", sender: "Ravi", text: "WBTC breakout lag raha hai.", time: "08:44" },
-        { id: "2", sender: "You", text: "Targets kya dekh rahe ho?", time: "08:45", outgoing: true },
-      ]
-    },
-    neha: {
-      name: "Neha",
-      messages: [
-        { id: "1", sender: "Neha", text: "Pepe me thoda scalp mara.", time: "12:21" },
-      ]
-    }
-  };
+const formatTime = (date: Date) => {
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+};
 
 export default function ChatThreadModal() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const key = (id || "aman").toString();
-  const thread = SAMPLE_THREADS[key] || SAMPLE_THREADS["aman"];
 
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(thread.messages);
+  const [thread, setThread] = useState<StoredChatThread | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const listRef = useRef<FlatList<ChatMessage>>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const applyFromState = (stateThread: StoredChatThread | undefined) => {
+      if (!active || !stateThread) return;
+      setThread(stateThread);
+      setMessages(stateThread.messages);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    };
+
+    getChatState().then(async (state) => {
+      if (!active) return;
+      const existing = state[key];
+      if (existing) {
+        applyFromState(existing);
+      } else {
+        const fallbackName = key === "telegram" ? "Telegram" : undefined;
+        await ensureChatThread(key, fallbackName);
+        if (!active) return;
+        const nextState = await getChatState();
+        applyFromState(nextState[key] || nextState["aman"]);
+      }
+    });
+
+    const off = onChatStateChange((state) => {
+      if (!active) return;
+      applyFromState(state[key] || state["aman"]);
+    });
+
+    return () => {
+      active = false;
+      off();
+    };
+  }, [key]);
+
+  const threadId = thread?.id;
+
+  useEffect(() => {
+    if (!threadId) return;
+    markThreadRead(threadId).catch(() => {});
+    events.emit("chat:read", { id: threadId });
+  }, [threadId]);
 
   const sendMessage = () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || !thread) return;
     const now = new Date();
-    const hh = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-    setMessages(prev => [...prev, { id: `${Date.now()}`, sender: "You", text: trimmed, time: `${hh}:${mm}`, outgoing: true }]);
+    const message: ChatMessage = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      sender: "You",
+      text: trimmed,
+      time: formatTime(now),
+      outgoing: true,
+    };
+    setMessages(prev => [...prev, message]);
     // fire-and-forget telegram send (if enabled)
     if (telegramEnabled) {
       sendTelegramMessage(trimmed).catch(() => {});
     }
     setInput("");
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    appendMessageToThread(thread.id, message, { markRead: true, nameFallback: thread.name }).catch(() => {});
   };
 
   useEffect(() => {
     if (!telegramEnabled) return;
     const stop = startTelegramPolling(({ text, from, date }) => {
       const d = new Date(date * 1000);
-      const hh = String(d.getHours()).padStart(2, '0');
-      const mm = String(d.getMinutes()).padStart(2, '0');
-      setMessages(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, sender: from || 'Telegram', text, time: `${hh}:${mm}` }]);
+      const message: ChatMessage = {
+        id: `${date}-${Math.random().toString(36).slice(2, 8)}`,
+        sender: from || "Telegram",
+        text,
+        time: formatTime(d),
+      };
+      setMessages(prev => [...prev, message]);
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-      // bump unread in list when not already on list; still emit to keep counters consistent
-      events.emit('chat:newMessage', { id: 'telegram' });
+      appendMessageToThread("telegram", message, {
+        markRead: key === "telegram",
+        nameFallback: "Telegram",
+      }).catch(() => {});
+      if (key !== "telegram") {
+        events.emit('chat:newMessage', { id: 'telegram' });
+      }
     });
     return stop;
-  }, []);
-
-  // mark as read when opening
-  useEffect(() => {
-    events.emit('chat:read', { id: key });
   }, [key]);
 
   const renderItem = ({ item }: { item: ChatMessage }) => (
@@ -102,7 +136,7 @@ export default function ChatThreadModal() {
         <TouchableOpacity onPress={() => router.back()} style={{ padding: spacing.xs }}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{thread.name}{(telegramEnabled && key === 'telegram') ? ' · Telegram Feed' : ''}</Text>
+        <Text style={styles.title}>{thread?.name || "Chats"}{(telegramEnabled && key === 'telegram') ? ' · Telegram Feed' : ''}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -121,7 +155,7 @@ export default function ChatThreadModal() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder={`Message ${thread.name}`}
+            placeholder={`Message ${thread?.name ?? 'contact'}`}
             placeholderTextColor={colors.textDim}
             style={styles.composerInput}
             multiline
