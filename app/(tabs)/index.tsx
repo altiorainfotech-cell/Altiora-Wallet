@@ -43,7 +43,7 @@ export default function Home() {
   const [verifyPhrase, setVerifyPhrase] = useState("");
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
 
-  const active = accounts[activeIndex];
+  const active = accounts[activeIndex] || accounts[0];
 
   // Use images from assets/nft for NFT thumbnails
   const nftAssetImages = useMemo(() => [
@@ -172,7 +172,7 @@ export default function Home() {
         <ScrollView
           style={styles.tokenList}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: spacing.lg }}
+          contentContainerStyle={{ paddingBottom: 140 }}
         >
           {/* Portfolio Value */}
           <Pressable
@@ -476,8 +476,11 @@ export default function Home() {
               style={{ alignSelf: 'stretch', backgroundColor: '#FF3B30' }}
               icon={<Ionicons name="trash" size={18} color="white" />}
               onPress={() => {
+                setAccountsOpen(false);
                 setDeletePhrase("");
-                setDeleteOpen(true);
+                setTimeout(() => {
+                  setDeleteOpen(true);
+                }, 200);
               }}
             />
           </View>
@@ -643,11 +646,18 @@ export default function Home() {
           disabled={normalize(deletePhrase) !== normalize(recoveryPhraseWords.join(' '))}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            removeAccount(activeIndex);
+            const indexToDelete = activeIndex;
+
+            // Close sheets first
             setDeletePhrase("");
             setDeleteOpen(false);
             setAccountsOpen(false);
-            Alert.alert('Account Deleted', 'Account has been removed successfully');
+
+            // Then remove account after UI has settled
+            setTimeout(() => {
+              removeAccount(indexToDelete);
+              Alert.alert('Account Deleted', 'Account has been removed successfully');
+            }, 150);
           }}
         />
         <TouchableOpacity
