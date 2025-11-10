@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { addWatchlist as apiAddWatchlist, login as apiLogin, removeWatchlist as apiRemoveWatchlist, createWallet, getWallets, getWatchlist, isAuthed, registerPushToken } from "../lib/api";
+import { getExpoPushToken } from "../lib/push";
 
 export type UiAccount = { id: string; label: string; address: string; balance: string };
 export type UiNetwork = { id: string; name: string; symbol: string };
@@ -319,12 +321,22 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
     const next = accounts.length + 1;
     const existing = new Set(accounts.map(a => a.address));
     const address = generateMockAddress(existing);
+    const newAccount = { id: `acc-${next - 1}`, label: `Account ${next}`, address, balance: "0.0000" };
     setAccounts(prev => [
       ...prev,
-      { id: `acc-${next - 1}`, label: `Account ${next}`, address, balance: "0.0000" }
+      newAccount
     ]);
+    // If backend auth is available, also persist as a wallet on the server
+    (async () => {
+      try {
+        if (isAuthed()) {
+          const chain = networks[networkIndex]?.id || 'sepolia';
+          await createWallet({ chain, address, label: newAccount.label });
+        }
+      } catch {}
+    })();
     setActiveIndex(next - 1);
-  }, [accounts]);
+  }, [accounts, networkIndex, networks]);
 
   const removeAccount = useCallback((index: number) => {
     // Keep at least one account
@@ -344,16 +356,68 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
   // Watchlist state and functions
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
 
+  // On mount, if backend API is configured and credentials provided, attempt login and sync
+  useEffect(() => {
+    const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
+    const DEMO_EMAIL = process.env.EXPO_PUBLIC_DEMO_EMAIL;
+    const DEMO_PASSWORD = process.env.EXPO_PUBLIC_DEMO_PASSWORD;
+    if (!API_BASE) return; // No backend configured
+    (async () => {
+      try {
+        if (!isAuthed() && DEMO_EMAIL && DEMO_PASSWORD) {
+          await apiLogin(DEMO_EMAIL, DEMO_PASSWORD);
+        }
+        if (isAuthed()) {
+          const w = await getWallets();
+          const accountsFromServer: UiAccount[] = (w.wallets || []).map((it: any, idx: number) => ({
+            id: it.id,
+            label: it.label || `Account ${idx + 1}`,
+            address: it.address,
+            balance: "0.0000",
+          }));
+          if (accountsFromServer.length) {
+            setAccounts(accountsFromServer);
+            setActiveIndex(0);
+          }
+          const wl = await getWatchlist();
+          if (wl.items) {
+            setWatchlist(wl.items.map((it: any) => ({ tokenId: it.tokenId, addedAt: Date.parse(it.addedAt) || Date.now() })));
+          }
+          // Register Expo push token
+          try {
+            const tk = await getExpoPushToken();
+            if (tk?.token) {
+              await registerPushToken(tk.token, tk.platform);
+            }
+          } catch {}
+        }
+      } catch (e) {
+        // ignore sync errors to keep UI functional offline
+      }
+    })();
+  }, []);
+
   const addToWatchlist = useCallback((tokenId: string) => {
     setWatchlist(prev => {
-      // Don't add if already in watchlist
       if (prev.some(item => item.tokenId === tokenId)) return prev;
       return [...prev, { tokenId, addedAt: Date.now() }];
     });
+    // Best-effort persist to backend
+    (async () => { try { if (isAuthed()) await apiAddWatchlist(tokenId); } catch {} })();
   }, []);
 
   const removeFromWatchlist = useCallback((tokenId: string) => {
     setWatchlist(prev => prev.filter(item => item.tokenId !== tokenId));
+    // Best-effort remove from backend by looking up id
+    (async () => {
+      try {
+        if (isAuthed()) {
+          const wl = await getWatchlist();
+          const item = (wl.items || []).find((it: any) => it.tokenId === tokenId);
+          if (item?.id) await apiRemoveWatchlist(item.id);
+        }
+      } catch {}
+    })();
   }, []);
 
   const isInWatchlist = useCallback((tokenId: string) => {
