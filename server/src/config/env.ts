@@ -13,4 +13,10 @@ export const env = {
   DATABASE_URL: process.env.DATABASE_URL || '',
   PRICE_PROVIDER: process.env.PRICE_PROVIDER || '', // 'coingecko'
   COINGECKO_API_KEY: process.env.COINGECKO_API_KEY || '',
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+  GOOGLE_WEB_CLIENT_ID: process.env.GOOGLE_WEB_CLIENT_ID || '',
+  GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID || '',
+  GOOGLE_ANDROID_CLIENT_ID: process.env.GOOGLE_ANDROID_CLIENT_ID || '',
 };

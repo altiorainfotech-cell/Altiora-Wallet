@@ -6,7 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useWalletUi } from '@/context/WalletUiContext';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
+import { googleSignIn } from '@/lib/api';
 import React, { useEffect, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import {
   Animated,
   Dimensions,
@@ -86,6 +89,7 @@ export default function OnboardingScreen() {
   const flatListRef = useRef<FlatList<OnboardingSlide>>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [importOpen, setImportOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Responsive sizing
   const isLargeScreen = width > 768;
@@ -131,6 +135,20 @@ export default function OnboardingScreen() {
       await setItem('hasOnboarded', 'true');
     } catch (e) {}
     router.replace('/(tabs)');
+  };
+
+  const handleGoogleSignIn = async (idToken: string) => {
+    try {
+      setLoading(true);
+      await googleSignIn(idToken);
+      await setItem('hasOnboarded', 'true');
+      Alert.alert('Success', 'Signed in with Google');
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      Alert.alert('Google Sign-In failed', e?.message || 'Please try again');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderSlide = ({ item }: { item: OnboardingSlide }) => {
@@ -206,29 +224,52 @@ export default function OnboardingScreen() {
 
               {/* Action Buttons */}
               <View style={styles.buttonsContainer}>
-                {/* Primary Button */}
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={handlePrimaryAction}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={currentIndex === 2 ? 'wallet-outline' : 'arrow-forward'}
-                    size={20}
-                    color="white"
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.primaryButtonText}>{item.primaryButton}</Text>
-                </TouchableOpacity>
+                {currentIndex === slides.length - 1 ? (
+                  /* Last Slide - Show Google Sign-In Buttons */
+                  <>
+                    <GoogleSignInButton
+                      onSuccess={handleGoogleSignIn}
+                      mode="signup"
+                    />
 
-                {/* Secondary Button */}
-                {item.secondaryButton && (
+                    <View style={styles.divider}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.dividerText}>or</Text>
+                      <View style={styles.dividerLine} />
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={handleSecondaryAction}
+                      activeOpacity={0.8}
+                      disabled={loading}
+                    >
+                      <Text style={styles.secondaryButtonText}>Import existing wallet</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.tertiaryButton}
+                      onPress={handleSkip}
+                      activeOpacity={0.8}
+                      disabled={loading}
+                    >
+                      <Text style={styles.tertiaryButtonText}>Skip for now</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  /* Other Slides - Show Next Button */
                   <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={handleSecondaryAction}
+                    style={styles.primaryButton}
+                    onPress={handlePrimaryAction}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.secondaryButtonText}>{item.secondaryButton}</Text>
+                    <Ionicons
+                      name={currentIndex === 2 ? 'wallet-outline' : 'arrow-forward'}
+                      size={20}
+                      color="white"
+                      style={styles.buttonIcon}
+                    />
+                    <Text style={styles.primaryButtonText}>{item.primaryButton}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -428,6 +469,36 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  tertiaryButton: {
+    paddingVertical: 14,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    width: '100%',
+  },
+  tertiaryButtonText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.sm,
+    width: '100%',
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  dividerText: {
+    color: 'rgba(255,255,255,0.7)',
+    paddingHorizontal: spacing.md,
+    fontSize: 14,
   },
   // Responsive styles for larger screens
   imageContainerLarge: {

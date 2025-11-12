@@ -10,13 +10,25 @@
     "newArchEnabled": true,
     "ios": {
       "config": {
-        "usesNonExemptEncryption": false
+        "usesNonExemptEncryption": false,
+        "googleSignIn": {
+          "reservedClientId": "com.googleusercontent.apps.YOUR_REVERSED_CLIENT_ID"
+        }
       },
       "supportsTablet": true,
+      "bundleIdentifier": "com.altiora.wallet",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs camera access to scan QR codes for wallet addresses, importing private keys, and connecting to dApps.",
         "NSPhotoLibraryUsageDescription": "This app needs photo library access to select QR code images for scanning wallet addresses.",
-        "NSFaceIDUsageDescription": "This app uses Face ID to securely access your wallet and authorize transactions."
+        "NSFaceIDUsageDescription": "This app uses Face ID to securely access your wallet and authorize transactions.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["com.googleusercontent.apps.YOUR_REVERSED_CLIENT_ID"]
+          }
+        ]
       }
     },
     "android": {
@@ -27,7 +39,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.altiora.wallet"
     },
     "web": {
       "output": "static",

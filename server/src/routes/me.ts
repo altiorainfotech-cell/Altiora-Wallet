@@ -6,7 +6,16 @@ import { prisma } from '../lib/prisma';
 export const meRouter = Router();
 
 meRouter.get('/me', requireAuth, async (req: AuthRequest, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { id: true, email: true, displayName: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      profilePicture: true,
+      provider: true
+    }
+  });
   if (!user) return res.status(404).json({ error: 'Not found' });
   res.json({ user });
 });
