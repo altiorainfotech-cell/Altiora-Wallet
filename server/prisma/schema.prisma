@@ -7,14 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AuthProvider {
+  email
+  google
+}
+
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String?
   displayName   String?
-  tokenVersion  Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  provider      AuthProvider @default(email)
+  googleId      String?      @unique
+  profilePicture String?
+  tokenVersion  Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   wallets       WalletAddress[]
   watchlist     WatchlistItem[]

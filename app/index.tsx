@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getItem } from '@/lib/storage';
+import { getItem, setItem } from '@/lib/storage';
 
 export default function IndexGate() {
   const router = useRouter();

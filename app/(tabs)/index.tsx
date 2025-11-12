@@ -10,11 +10,18 @@ import { EthereumIcon } from "../../components/icons";
 import Sheet from "../../components/Sheet";
 import PrimaryButton from "../../components/PrimaryButton";
 import { useWalletUi } from "../../context/WalletUiContext";
+import { useUser } from "../../hooks/useUser";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 
 export default function Home() {
   const router = useRouter();
+  const { user, loading, error } = useUser();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Home: User state:', { user, loading, error });
+  }, [user, loading, error]);
   const {
     accounts,
     activeIndex,
@@ -199,6 +206,27 @@ export default function Home() {
               end={{ x: 1, y: 1 }}
               style={styles.portfolioSection}
             >
+              {loading ? (
+                <Text style={[styles.welcomeText, { color: colors.textDim }]}>
+                  Loading user...
+                </Text>
+              ) : error ? (
+                <Text style={[styles.welcomeText, { color: colors.error, fontSize: 12 }]}>
+                  Error: {error}
+                </Text>
+              ) : user?.displayName ? (
+                <Text style={styles.welcomeText}>
+                  Welcome, {user.displayName}!
+                </Text>
+              ) : user ? (
+                <Text style={[styles.welcomeText, { fontSize: 12, color: colors.textDim }]}>
+                  Welcome! (No display name set)
+                </Text>
+              ) : (
+                <Text style={[styles.welcomeText, { fontSize: 12, color: colors.textDim }]}>
+                  Not signed in
+                </Text>
+              )}
               <View style={styles.portfolioHeader}>
                 <View>
                   <Text style={styles.portfolioLabel}>Total Balance</Text>
@@ -786,6 +814,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8
+  },
+  welcomeText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: spacing.md,
+    letterSpacing: 0.5
   },
   portfolioHeader: {
     flexDirection: "row",

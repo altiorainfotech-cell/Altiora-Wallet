@@ -114,6 +114,22 @@ export async function logout() {
   clearAuthTokens();
 }
 
+// Google OAuth Sign-In
+export async function googleSignIn(idToken: string) {
+  const res = await fetch(`${API_BASE}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Google sign-in failed' }));
+    throw new Error(error.error || 'Google sign-in failed');
+  }
+  const data = await res.json();
+  setAuthTokens(data.accessToken, data.refreshToken);
+  return data;
+}
+
 // Domain APIs
 export async function getMe() {
   const res = await request('/me');
