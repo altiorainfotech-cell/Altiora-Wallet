@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, TextInput, Image, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,6 +13,7 @@ import { useWalletUi } from "../../context/WalletUiContext";
 import { useUser } from "../../hooks/useUser";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
+import { getPortfolioAnalytics, getPnL, getPriceAlerts } from "../../lib/api";
 
 export default function Home() {
   const router = useRouter();
@@ -271,6 +272,43 @@ export default function Home() {
               </View>
             </LinearGradient>
           </Pressable>
+
+          {/* Analytics Widgets */}
+          <View style={styles.analyticsSection}>
+            <TouchableOpacity 
+              style={styles.analyticsCard}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                // Navigate to detailed analytics
+              }}
+            >
+              <LinearGradient colors={['#6AA3FF20', '#6AA3FF10']} style={styles.analyticsGradient}>
+                <View style={styles.analyticsHeader}>
+                  <Ionicons name="trending-up" size={20} color={colors.success} />
+                  <Text style={styles.analyticsTitle}>Portfolio Performance</Text>
+                </View>
+                <Text style={styles.analyticsValue}>+12.5%</Text>
+                <Text style={styles.analyticsSubtext}>30-day return</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.analyticsCard}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(modals)/watchlist');
+              }}
+            >
+              <LinearGradient colors={['#4ECDC420', '#4ECDC410']} style={styles.analyticsGradient}>
+                <View style={styles.analyticsHeader}>
+                  <Ionicons name="notifications" size={20} color={colors.warning} />
+                  <Text style={styles.analyticsTitle}>Price Alerts</Text>
+                </View>
+                <Text style={styles.analyticsValue}>3</Text>
+                <Text style={styles.analyticsSubtext}>Active alerts</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
@@ -1157,6 +1195,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 3,
     fontWeight: "600"
+  },
+
+  // Analytics Section
+  analyticsSection: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md
+  },
+  analyticsCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border + '60'
+  },
+  analyticsGradient: {
+    padding: spacing.md
+  },
+  analyticsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginBottom: spacing.sm
+  },
+  analyticsTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  analyticsValue: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: spacing.xs
+  },
+  analyticsSubtext: {
+    color: colors.textDim,
+    fontSize: 10,
+    fontWeight: "500"
   },
 
   // Sheet styles

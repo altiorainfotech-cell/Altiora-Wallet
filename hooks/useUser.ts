@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMe } from '@/lib/api';
+import { getItem, setItem } from '@/lib/storage';
 
 export interface User {
   id: string;
@@ -22,17 +23,30 @@ export function useUser() {
       const data = await getMe();
       console.log('useUser: User data received:', JSON.stringify(data, null, 2));
       setUser(data.user);
+      try {
+        if (data?.user?.displayName) {
+          await setItem('lastUserName', data.user.displayName);
+        }
+      } catch {}
     } catch (err: any) {
       console.error('useUser: Failed to fetch user - Full error:', err);
       console.error('useUser: Error message:', err.message);
       console.error('useUser: Error stack:', err.stack);
-      // If error is 401 or auth-related, user is not logged in
-      if (err.message?.includes('401') || err.message?.includes('auth')) {
-        console.log('useUser: Not authenticated');
+      // Fallback: use cached display name or default temporary name
+      try {
+        const cached = await getItem('lastUserName');
+        const fallbackName = cached || process.env.EXPO_PUBLIC_FALLBACK_USER_NAME || 'Altiora Infotech';
+        if (fallbackName) {
+          setUser({ id: 'local', email: '', displayName: fallbackName, profilePicture: null, provider: 'google' });
+          setError(null);
+        } else {
+          setError(err.message || 'Failed to fetch user');
+          setUser(null);
+        }
+      } catch {
+        setError(err.message || 'Failed to fetch user');
         setUser(null);
       }
-      setError(err.message || 'Failed to fetch user');
-      setUser(null);
     } finally {
       setLoading(false);
     }

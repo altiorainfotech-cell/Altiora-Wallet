@@ -200,3 +200,83 @@ export async function getPriceHistory(symbol: string, days = 7, interval: 'hourl
   if (!res.ok) throw new Error('Failed to fetch price history');
   return res.json();
 }
+
+// Analytics APIs
+export async function getPortfolioAnalytics(address: string, chain: string, days = 30) {
+  const res = await request(`/analytics/portfolio/${address}?chain=${encodeURIComponent(chain)}&days=${days}`);
+  if (!res.ok) throw new Error('Failed to fetch portfolio analytics');
+  return res.json();
+}
+
+export async function getPnL(address: string, chain: string) {
+  const res = await request(`/analytics/pnl/${address}?chain=${encodeURIComponent(chain)}`);
+  if (!res.ok) throw new Error('Failed to fetch P&L');
+  return res.json();
+}
+
+export async function getPriceAlerts() {
+  const res = await request('/analytics/alerts');
+  if (!res.ok) throw new Error('Failed to fetch price alerts');
+  return res.json();
+}
+
+export async function createPriceAlert(tokenId: string, condition: 'above'|'below', price: number) {
+  const res = await request('/analytics/alerts', {
+    method: 'POST',
+    body: JSON.stringify({ tokenId, condition, price })
+  });
+  if (!res.ok) throw new Error('Failed to create price alert');
+  return res.json();
+}
+
+export async function deletePriceAlert(id: string) {
+  const res = await request(`/analytics/alerts/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete price alert');
+  return res.json();
+}
+
+export async function savePortfolioSnapshot(address: string, chain: string, totalUsd: number, change24h: number, data: any) {
+  const res = await request('/analytics/snapshot', {
+    method: 'POST',
+    body: JSON.stringify({ address, chain, totalUsd, change24h, data })
+  });
+  if (!res.ok) throw new Error('Failed to save portfolio snapshot');
+  return res.json();
+}
+
+// Chat APIs
+export async function getChatThreads() {
+  const res = await request('/chat/threads');
+  if (!res.ok) throw new Error('Failed to fetch chat threads');
+  return res.json();
+}
+
+export async function createChatThread(title?: string) {
+  const res = await request('/chat/threads', {
+    method: 'POST',
+    body: JSON.stringify({ title })
+  });
+  if (!res.ok) throw new Error('Failed to create chat thread');
+  return res.json();
+}
+
+export async function getChatMessages(threadId: string) {
+  const res = await request(`/chat/threads/${threadId}/messages`);
+  if (!res.ok) throw new Error('Failed to fetch chat messages');
+  return res.json();
+}
+
+export async function sendChatMessage(threadId: string, content: string) {
+  const res = await request('/chat/message', {
+    method: 'POST',
+    body: JSON.stringify({ threadId, content })
+  });
+  if (!res.ok) throw new Error('Failed to send chat message');
+  return res.json();
+}
+
+export async function deleteChatThread(threadId: string) {
+  const res = await request(`/chat/threads/${threadId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete chat thread');
+  return res.json();
+}

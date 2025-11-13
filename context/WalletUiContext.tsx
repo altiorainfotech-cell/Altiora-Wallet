@@ -484,7 +484,6 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
-
 export const useWalletUi = () => {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("useWalletUi must be used within WalletUiProvider");

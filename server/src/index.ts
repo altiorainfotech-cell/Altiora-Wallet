@@ -35,8 +35,13 @@ app.use(env.API_PREFIX, watchlistRouter);
 // Prices and portfolio
 import { pricesRouter } from './routes/prices';
 import { portfolioRouter } from './routes/portfolio';
+// Analytics and Chat
+import { analyticsRouter } from './routes/analytics';
+import { chatRouter } from './routes/chat';
 app.use(env.API_PREFIX, pricesRouter);
 app.use(env.API_PREFIX, portfolioRouter);
+app.use(env.API_PREFIX, analyticsRouter);
+app.use(env.API_PREFIX, chatRouter);
 
 app.get('/', (_req, res) => {
   res.send('Wallet API');
