@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { WalletUiProvider } from "../context/WalletUiContext";
+import BiometricLock from "../components/BiometricLock";
 
 export default function RootLayout() {
   // We're using the app directory at the root, not src/app
@@ -52,16 +53,18 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <SafeAreaProvider>
             <WalletUiProvider>
-              <StatusBar style="light" />
-              {/* Root stack: index gate + onboarding + tabs + modal routes */}
-              <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="(modals)/send" options={{ presentation: "modal" }} />
-              <Stack.Screen name="(modals)/receive" options={{ presentation: "modal" }} />
-              <Stack.Screen name="(modals)/import-wallet" options={{ presentation: "modal" }} />
-              </Stack>
+              <BiometricLock>
+                <StatusBar style="light" />
+                {/* Root stack: index gate + onboarding + tabs + modal routes */}
+                <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(modals)/send" options={{ presentation: "modal" }} />
+                <Stack.Screen name="(modals)/receive" options={{ presentation: "modal" }} />
+                <Stack.Screen name="(modals)/import-wallet" options={{ presentation: "modal" }} />
+                </Stack>
+              </BiometricLock>
             </WalletUiProvider>
           </SafeAreaProvider>
         </GestureHandlerRootView>

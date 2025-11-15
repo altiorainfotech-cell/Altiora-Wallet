@@ -6,6 +6,7 @@ import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useWalletUi } from "../../context/WalletUiContext";
+import { swapTokens, isAuthed } from "../../lib/api";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 
@@ -41,7 +42,7 @@ export default function SwapModal() {
   const estimatedGasFee = "0.0015"; // Mock gas fee
   const gasFeeUSD = (parseFloat(estimatedGasFee) * parseFloat(tokens[0].price)).toFixed(2);
 
-  const handleSwap = () => {
+  const handleSwap = async () => {
     if (!fromAmount || parseFloat(fromAmount) <= 0) {
       Alert.alert("Error", "Please enter a valid amount");
       return;
@@ -52,6 +53,9 @@ export default function SwapModal() {
       return;
     }
 
+    const fromAmountNum = parseFloat(fromAmount);
+    const toAmountNum = parseFloat(toAmount);
+
     Alert.alert(
       "Confirm Swap",
       `Swap ${fromAmount} ${fromToken.symbol} for ${toAmount} ${toToken.symbol}?\n\nGas Fee: ${estimatedGasFee} ETH (~$${gasFeeUSD})`,
@@ -59,9 +63,36 @@ export default function SwapModal() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Confirm",
-          onPress: () => {
-            Alert.alert("Success", "Swap executed successfully!");
-            router.back();
+          onPress: async () => {
+            try {
+              // Call API to record swap transaction
+              if (isAuthed()) {
+                const result = await swapTokens({
+                  walletAddress: active.address,
+                  fromTokenId,
+                  toTokenId,
+                  fromAmount: fromAmountNum,
+                  toAmount: toAmountNum,
+                  chain: net.id
+                });
+                console.log('Swap transaction recorded:', result);
+              } else {
+                console.log('Not authenticated, swap simulated locally');
+                // For demo purposes, still show success even if not authenticated
+              }
+
+              Alert.alert(
+                "Success",
+                `Swapped ${fromAmount} ${fromToken.symbol} for ${toAmount} ${toToken.symbol}!`,
+                [
+                  { text: "View Transactions", onPress: () => router.push('/(tabs)/transactions') },
+                  { text: "Done", onPress: () => router.back() }
+                ]
+              );
+            } catch (error: any) {
+              console.error('Swap error:', error);
+              Alert.alert("Failed", error.message || "Swap failed. Please try again.");
+            }
           }
         }
       ]

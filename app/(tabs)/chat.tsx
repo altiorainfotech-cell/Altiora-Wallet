@@ -2,20 +2,21 @@ import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 import { telegramEnabled } from "../../lib/telegram";
 import { events } from "../../lib/events";
 import Sheet from "../../components/Sheet";
+import { getChatThreads, createChatThread } from "../../lib/api";
 
 type ChatPreview = { id: string; name: string; last: string; time: string; unread?: number; pinned?: boolean; muted?: boolean; archived?: boolean };
 
 const SAMPLE_CHATS: ChatPreview[] = [
+  { id: "ai-assistant", name: "AI Assistant", last: "How can I help with your crypto portfolio?", time: "now", pinned: true },
   { id: "aman", name: "Aman", last: "Arre bhai, market ka kya scene...", time: "09:12", unread: 2 },
   { id: "priya", name: "Priya", last: "Kal ke dip me entry li thi!", time: "10:01" },
   { id: "ravi", name: "Ravi", last: "WBTC breakout lag raha hai.", time: "08:44", unread: 1 },
-  { id: "neha", name: "Neha", last: "Pepe me thoda scalp mara.", time: "12:21" },
 ];
 
 export default function ChatListScreen() {
@@ -26,12 +27,91 @@ export default function ChatListScreen() {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [selected, setSelected] = useState<ChatPreview | null>(null);
 
-  const [chats, setChats] = useState<ChatPreview[]>(() => {
-    const base = telegramEnabled
-      ? [{ id: 'telegram', name: 'Telegram', last: 'Connected', time: 'now', pinned: true } as ChatPreview, ...SAMPLE_CHATS]
-      : SAMPLE_CHATS;
-    return base.map(c => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 }));
-  });
+  const [chats, setChats] = useState<ChatPreview[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadChatThreads();
+  }, []);
+
+  // Refresh chat list when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadChatThreads();
+    }, [])
+  );
+
+  const loadChatThreads = async () => {
+    try {
+      const { threads } = await getChatThreads();
+      const chatPreviews = threads.map((thread: any) => ({
+        id: thread.id,
+        name: thread.title || 'AI Assistant',
+        last: thread.lastMessage?.content || 'Start a conversation',
+        time: new Date(thread.updatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        pinned: (thread.title || 'AI Assistant') === 'AI Assistant',
+        muted: false,
+        archived: false,
+        unread: 0
+      }));
+      
+      // Add AI Assistant as default if no threads exist
+      if (chatPreviews.length === 0) {
+        try {
+          const { thread } = await createChatThread('AI Assistant');
+          chatPreviews.push({
+            id: thread.id,
+            name: 'AI Assistant',
+            last: 'How can I help with your crypto portfolio?',
+            time: 'now',
+            pinned: true,
+            muted: false,
+            archived: false,
+            unread: 0
+          });
+        } catch (error) {
+          // Fallback to temp AI chat
+          chatPreviews.push({
+            id: 'ai-assistant',
+            name: 'AI Assistant',
+            last: 'How can I help with your crypto portfolio?',
+            time: 'now',
+            pinned: true,
+            muted: false,
+            archived: false,
+            unread: 0
+          });
+        }
+      }
+      
+      const base = telegramEnabled
+        ? [{ id: 'telegram', name: 'Telegram', last: 'Connected', time: 'now', pinned: true } as ChatPreview, ...chatPreviews]
+        : chatPreviews;
+      
+      setChats(base.map((c: ChatPreview) => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 })));
+    } catch (error) {
+      console.error('Failed to load chat threads:', error);
+      // Fallback to AI Assistant only
+      const base = telegramEnabled
+        ? [{ id: 'telegram', name: 'Telegram', last: 'Connected', time: 'now', pinned: true } as ChatPreview, SAMPLE_CHATS[0]]
+        : [SAMPLE_CHATS[0]];
+      setChats(base.map((c: ChatPreview) => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 })));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createNewChat = async () => {
+    try {
+      const { thread } = await createChatThread('New Chat');
+      router.push(`/(modals)/chat-thread?id=${thread.id}`);
+    } catch (error) {
+      console.error('Failed to create chat:', error);
+      // Fallback: create a temporary AI chat
+      const tempId = `temp-${Date.now()}`;
+      router.push(`/(modals)/chat-thread?id=${tempId}`);
+    }
+  };
 
   // listen for new messages to bump unread
   useEffect(() => {
@@ -85,7 +165,12 @@ export default function ChatListScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.title}>Chats</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Chats</Text>
+          <TouchableOpacity onPress={createNewChat} style={styles.newChatBtn}>
+            <Ionicons name="add" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.usernameRow}>
           <Ionicons name="paper-plane-outline" size={16} color={colors.primary} />
           <TextInput
@@ -246,7 +331,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     gap: spacing.sm,
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  newChatBtn: { padding: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   usernameRow: {
     flexDirection: 'row',
     alignItems: 'center',

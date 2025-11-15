@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { EthereumIcon } from "../../components/icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path, Circle } from "react-native-svg";
 import { useWalletUi } from "../../context/WalletUiContext";
+import { getPriceHistory } from "../../lib/api";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 
@@ -19,42 +20,79 @@ export default function TokenDetailModal() {
   const params = useLocalSearchParams();
   const { tokens } = useWalletUi();
   const [selectedPeriod, setSelectedPeriod] = useState("1D");
+  const [chartData, setChartData] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Find token by ID from params
   const token = tokens.find(t => t.id === params.tokenId) || tokens[0];
 
-  // Generate mock chart data by period (simple trend + noise)
-  const chartData = useMemo(() => {
-    const periodPointsMap: Record<string, number> = {
-      "1D": 48,   // ~30-min candles
-      "1W": 84,   // ~2-hour candles
-      "1M": 120,  // ~6-hour candles
-      "3M": 90,   // ~1-day candles
-      "1Y": 120,  // ~3-day candles
-      "3Y": 156,  // ~1-week candles
-    };
-    const points = periodPointsMap[selectedPeriod] ?? 50;
-    const data: number[] = [];
-    let basePrice = parseFloat(token.price);
+  // Fetch real price history from CoinGecko API
+  useEffect(() => {
+    const fetchPriceHistory = async () => {
+      setLoading(true);
+      try {
+        const periodDaysMap: Record<string, number> = {
+          "1D": 1,
+          "1W": 7,
+          "1M": 30,
+          "3M": 90,
+          "1Y": 365,
+          "3Y": 1095,
+        };
+        const days = periodDaysMap[selectedPeriod] ?? 1;
+        const interval = days <= 1 ? 'hourly' : 'daily';
 
-    const trendSign = (token.change24h ?? 0) >= 0 ? 1 : -1;
-    const trendScaleMap: Record<string, number> = {
-      "1D": 0.15,
-      "1W": 0.5,
-      "1M": 1.5,
-      "3M": 3,
-      "1Y": 6,
-      "3Y": 12,
-    };
-    const trendScale = trendScaleMap[selectedPeriod] ?? 0.5;
+        const { points } = await getPriceHistory(token.symbol, days, interval);
 
-    for (let i = 0; i < points; i++) {
-      const variance = (Math.random() - 0.5) * basePrice * 0.02; // 2% noise
-      const trend = trendSign * (i / points) * (basePrice * (trendScale / 100));
-      data.push(Math.max(0.000001, basePrice + variance + trend));
-    }
-    return data;
-  }, [selectedPeriod, token.price, token.change24h]);
+        if (points && points.length > 0) {
+          const prices = points.map((p: any) => p.usd);
+          setChartData(prices);
+        } else {
+          // Fallback to mock data if API fails
+          generateMockData();
+        }
+      } catch (error) {
+        console.log('Failed to fetch price history, using mock data:', error);
+        generateMockData();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const generateMockData = () => {
+      const periodPointsMap: Record<string, number> = {
+        "1D": 48,
+        "1W": 84,
+        "1M": 120,
+        "3M": 90,
+        "1Y": 120,
+        "3Y": 156,
+      };
+      const points = periodPointsMap[selectedPeriod] ?? 50;
+      const data: number[] = [];
+      let basePrice = parseFloat(token.price);
+
+      const trendSign = (token.change24h ?? 0) >= 0 ? 1 : -1;
+      const trendScaleMap: Record<string, number> = {
+        "1D": 0.15,
+        "1W": 0.5,
+        "1M": 1.5,
+        "3M": 3,
+        "1Y": 6,
+        "3Y": 12,
+      };
+      const trendScale = trendScaleMap[selectedPeriod] ?? 0.5;
+
+      for (let i = 0; i < points; i++) {
+        const variance = (Math.random() - 0.5) * basePrice * 0.02;
+        const trend = trendSign * (i / points) * (basePrice * (trendScale / 100));
+        data.push(Math.max(0.000001, basePrice + variance + trend));
+      }
+      setChartData(data);
+    };
+
+    fetchPriceHistory();
+  }, [selectedPeriod, token.symbol, token.price, token.change24h]);
   const minPrice = Math.min(...chartData);
   const maxPrice = Math.max(...chartData);
   const priceRange = maxPrice - minPrice;
@@ -126,27 +164,38 @@ export default function TokenDetailModal() {
 
             {/* Chart */}
             <View style={styles.chartContainer}>
-              <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                {/* Gradient fill */}
-                <Path
-                  d={`${generatePath()} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`}
-                  fill={periodChangePct >= 0 ? colors.success + "20" : colors.error + "20"}
-                />
-                {/* Line */}
-                <Path
-                  d={generatePath()}
-                  stroke={periodChangePct >= 0 ? colors.success : colors.error}
-                  strokeWidth={2}
-                  fill="none"
-                />
-                {/* Last point */}
-                <Circle
-                  cx={(chartData.length - 1) * (CHART_WIDTH / (chartData.length - 1))}
-                  cy={CHART_HEIGHT - ((chartData[chartData.length - 1] - minPrice) / priceRange) * CHART_HEIGHT}
-                  r={4}
-                  fill={token.change24h >= 0 ? colors.success : colors.error}
-                />
-              </Svg>
+              {loading ? (
+                <View style={[styles.loadingContainer, { height: CHART_HEIGHT }]}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingText}>Loading chart data...</Text>
+                </View>
+              ) : chartData.length > 0 ? (
+                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+                  {/* Gradient fill */}
+                  <Path
+                    d={`${generatePath()} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`}
+                    fill={periodChangePct >= 0 ? colors.success + "20" : colors.error + "20"}
+                  />
+                  {/* Line */}
+                  <Path
+                    d={generatePath()}
+                    stroke={periodChangePct >= 0 ? colors.success : colors.error}
+                    strokeWidth={2}
+                    fill="none"
+                  />
+                  {/* Last point */}
+                  <Circle
+                    cx={(chartData.length - 1) * (CHART_WIDTH / (chartData.length - 1))}
+                    cy={CHART_HEIGHT - ((chartData[chartData.length - 1] - minPrice) / priceRange) * CHART_HEIGHT}
+                    r={4}
+                    fill={token.change24h >= 0 ? colors.success : colors.error}
+                  />
+                </Svg>
+              ) : (
+                <View style={[styles.loadingContainer, { height: CHART_HEIGHT }]}>
+                  <Text style={styles.loadingText}>No chart data available</Text>
+                </View>
+              )}
             </View>
 
             {/* Period Selector */}
@@ -324,6 +373,16 @@ const styles = StyleSheet.create({
   chartContainer: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md
+  },
+  loadingText: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontWeight: "500"
   },
 
   // Period Selector

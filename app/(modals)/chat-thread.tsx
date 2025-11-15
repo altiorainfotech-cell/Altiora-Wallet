@@ -7,8 +7,62 @@ import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 import { sendTelegramMessage, startTelegramPolling, telegramEnabled } from "../../lib/telegram";
 import { events } from "../../lib/events";
+import { getChatMessages, sendChatMessage } from "../../lib/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ChatMessage = { id: string; sender: string; text: string; time: string; outgoing?: boolean };
+
+function generateMockAIResponse(userMessage: string): string {
+  const message = userMessage.toLowerCase();
+  
+  // Greeting responses
+  if (message.includes('hello') || message.includes('hi') || message.includes('hey')) {
+    return "Hello! I'm your crypto assistant. I can help you with portfolio management, trading strategies, DeFi protocols, and market analysis. What would you like to explore today?";
+  }
+  
+  // Price and market analysis
+  if (message.includes('price') || message.includes('market') || message.includes('btc') || message.includes('eth')) {
+    return "📈 Market Analysis: Current crypto markets are showing volatility. For price tracking, I recommend setting up alerts for key levels. ETH is showing strength in the DeFi sector, while BTC remains the store of value. Consider dollar-cost averaging for long-term positions.";
+  }
+  
+  // Trading and swapping
+  if (message.includes('swap') || message.includes('trade') || message.includes('buy') || message.includes('sell')) {
+    return "💱 Trading Tips: Always check slippage tolerance (0.5-1% for stable pairs, 2-5% for volatile tokens). Use reputable DEXs like Uniswap, 1inch, or Curve. Monitor gas fees and consider Layer 2 solutions like Polygon or Arbitrum for cheaper transactions.";
+  }
+  
+  // Staking and yield farming
+  if (message.includes('stake') || message.includes('staking') || message.includes('yield') || message.includes('farm')) {
+    return "🏦 Staking Opportunities: ETH 2.0 staking offers ~4-6% APY with some lock-up. Polygon staking provides ~8-12% with more flexibility. Consider liquid staking tokens like stETH or rETH for maintaining liquidity. Always research validator reputation and smart contract risks.";
+  }
+  
+  // Security and safety
+  if (message.includes('security') || message.includes('safe') || message.includes('hack') || message.includes('scam')) {
+    return "🔒 Security Best Practices: Use hardware wallets for large amounts, enable 2FA everywhere, never share your seed phrase, verify contract addresses on Etherscan, be cautious of phishing sites, and start with small amounts when trying new protocols.";
+  }
+  
+  // Portfolio management
+  if (message.includes('portfolio') || message.includes('balance') || message.includes('diversif')) {
+    return "📊 Portfolio Strategy: Aim for diversification across sectors (30% BTC/ETH, 40% altcoins, 20% DeFi tokens, 10% experimental). Rebalance quarterly, set stop-losses at -20%, and take profits at +50-100%. Track your cost basis and consider tax implications.";
+  }
+  
+  // DeFi protocols
+  if (message.includes('defi') || message.includes('protocol') || message.includes('liquidity')) {
+    return "🌐 DeFi Insights: Popular protocols include Uniswap (DEX), Aave (lending), Compound (borrowing), and Curve (stablecoins). Always check TVL, audit reports, and start with blue-chip protocols. Impermanent loss is a key risk in liquidity provision.";
+  }
+  
+  // NFTs
+  if (message.includes('nft') || message.includes('opensea') || message.includes('collectible')) {
+    return "🎨 NFT Market: Focus on utility-driven projects, established collections, and strong communities. Check floor prices, trading volume, and roadmap execution. Be aware of royalties and gas fees when trading.";
+  }
+  
+  // Gas fees
+  if (message.includes('gas') || message.includes('fee') || message.includes('expensive')) {
+    return "⛽ Gas Optimization: Use Layer 2 solutions (Polygon, Arbitrum, Optimism) for cheaper transactions. Check gas trackers like GasNow or ETH Gas Station. Batch transactions when possible and avoid peak hours (US market open).";
+  }
+  
+  // General help
+  return "🚀 I'm your crypto assistant! I can help with:\n\n📈 Market analysis & price tracking\n💱 Trading strategies & DEX usage\n🏦 Staking & yield opportunities\n🔒 Security best practices\n📊 Portfolio management\n🌐 DeFi protocols\n\nWhat specific topic interests you?";
+}
 
 const SAMPLE_THREADS: Record<string, { name: string; messages: ChatMessage[] }>
   = {
@@ -45,25 +99,176 @@ const SAMPLE_THREADS: Record<string, { name: string; messages: ChatMessage[] }>
 export default function ChatThreadModal() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
-  const key = (id || "aman").toString();
-  const thread = SAMPLE_THREADS[key] || SAMPLE_THREADS["aman"];
+  const key = (id || "").toString();
 
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(thread.messages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [threadTitle, setThreadTitle] = useState('AI Assistant');
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
-  const sendMessage = () => {
+  // Save messages to storage
+  const saveMessages = async (msgs: ChatMessage[]) => {
+    try {
+      await AsyncStorage.setItem(`chat_${key}`, JSON.stringify(msgs));
+    } catch (error) {
+      console.error('Failed to save messages:', error);
+    }
+  };
+
+  // Load messages from storage
+  const loadStoredMessages = async (): Promise<ChatMessage[]> => {
+    try {
+      const stored = await AsyncStorage.getItem(`chat_${key}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.error('Failed to load stored messages:', error);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    loadMessages();
+  }, [id]);
+
+  const loadMessages = async () => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
+    // Load stored messages first
+    const storedMessages = await loadStoredMessages();
+    setMessages(storedMessages);
+
+    // Handle sample threads (telegram, etc.)
+    if (SAMPLE_THREADS[key]) {
+      const thread = SAMPLE_THREADS[key];
+      const combinedMessages = [...storedMessages, ...thread.messages.filter(msg => !storedMessages.find(s => s.id === msg.id))];
+      setMessages(combinedMessages);
+      setThreadTitle(thread.name);
+      setLoading(false);
+      return;
+    }
+
+    // Handle AI Assistant fallback
+    if (key === 'ai-assistant' || key.startsWith('temp-')) {
+      setThreadTitle('AI Assistant');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { messages: apiMessages } = await getChatMessages(id.toString());
+      const formattedMessages = apiMessages.map((msg: any) => ({
+        id: msg.id,
+        sender: msg.role === 'user' ? 'You' : 'AI Assistant',
+        text: msg.content,
+        time: new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        outgoing: msg.role === 'user'
+      }));
+      
+      // Merge with stored messages, prioritizing API messages
+      const mergedMessages = [...formattedMessages];
+      storedMessages.forEach(stored => {
+        if (!mergedMessages.find(api => api.id === stored.id)) {
+          mergedMessages.push(stored);
+        }
+      });
+      
+      setMessages(mergedMessages.sort((a, b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime()));
+      setThreadTitle('AI Assistant');
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+      setThreadTitle('AI Assistant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, "0");
     const mm = String(now.getMinutes()).padStart(2, "0");
-    setMessages(prev => [...prev, { id: `${Date.now()}`, sender: "You", text: trimmed, time: `${hh}:${mm}`, outgoing: true }]);
-    // fire-and-forget telegram send (if enabled)
-    if (telegramEnabled) {
+    
+    // Add user message immediately
+    const userMessage = { id: `${Date.now()}`, sender: "You", text: trimmed, time: `${hh}:${mm}`, outgoing: true };
+    setMessages(prev => {
+      const newMessages = [...prev, userMessage];
+      saveMessages(newMessages);
+      return newMessages;
+    });
+    setInput("");
+    
+    // Handle different chat types
+    if (id && !SAMPLE_THREADS[key] && key !== 'ai-assistant' && !key.startsWith('temp-')) {
+      // Real AI chat thread
+      try {
+        const { userMessage: apiUserMsg, assistantMessage } = await sendChatMessage(id.toString(), trimmed);
+        
+        // Replace temp message with API response and add AI response
+        const aiMessage = {
+          id: assistantMessage.id,
+          sender: "AI Assistant",
+          text: assistantMessage.content,
+          time: new Date(assistantMessage.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          outgoing: false
+        };
+        
+        setMessages(prev => {
+          const updatedMessages = [...prev.slice(0, -1), 
+            { ...userMessage, id: apiUserMsg.id },
+            aiMessage
+          ];
+          saveMessages(updatedMessages);
+          return updatedMessages;
+        });
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        // Add mock AI response for fallback
+        setTimeout(() => {
+          const mockResponse = generateMockAIResponse(trimmed);
+          const aiMessage = {
+            id: `mock-${Date.now()}`,
+            sender: "AI Assistant",
+            text: mockResponse,
+            time: `${hh}:${mm}`,
+            outgoing: false
+          };
+          setMessages(prev => {
+            const updatedMessages = [...prev, aiMessage];
+            saveMessages(updatedMessages);
+            return updatedMessages;
+          });
+          requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+        }, 1000); // Add 1 second delay to simulate AI thinking
+      }
+    } else if (key === 'ai-assistant' || key.startsWith('temp-')) {
+      // Fallback AI chat with typing delay
+      setTimeout(() => {
+        const mockResponse = generateMockAIResponse(trimmed);
+        const aiMessage = {
+          id: `mock-${Date.now()}`,
+          sender: "AI Assistant",
+          text: mockResponse,
+          time: `${hh}:${mm}`,
+          outgoing: false
+        };
+        setMessages(prev => {
+          const updatedMessages = [...prev, aiMessage];
+          saveMessages(updatedMessages);
+          return updatedMessages;
+        });
+        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      }, 1000);
+    } else if (key === 'telegram' && telegramEnabled) {
+      // Handle telegram
       sendTelegramMessage(trimmed).catch(() => {});
     }
-    setInput("");
+    
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   };
 
@@ -73,7 +278,12 @@ export default function ChatThreadModal() {
       const d = new Date(date * 1000);
       const hh = String(d.getHours()).padStart(2, '0');
       const mm = String(d.getMinutes()).padStart(2, '0');
-      setMessages(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, sender: from || 'Telegram', text, time: `${hh}:${mm}` }]);
+      const newMessage = { id: `${Date.now()}-${Math.random()}`, sender: from || 'Telegram', text, time: `${hh}:${mm}` };
+      setMessages(prev => {
+        const updatedMessages = [...prev, newMessage];
+        saveMessages(updatedMessages);
+        return updatedMessages;
+      });
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
       // bump unread in list when not already on list; still emit to keep counters consistent
       events.emit('chat:newMessage', { id: 'telegram' });
@@ -102,7 +312,7 @@ export default function ChatThreadModal() {
         <TouchableOpacity onPress={() => router.back()} style={{ padding: spacing.xs }}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{thread.name}{(telegramEnabled && key === 'telegram') ? ' · Telegram Feed' : ''}</Text>
+        <Text style={styles.title}>{threadTitle}{(telegramEnabled && key === 'telegram') ? ' · Telegram Feed' : ''}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -121,7 +331,7 @@ export default function ChatThreadModal() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder={`Message ${thread.name}`}
+            placeholder={`Message ${threadTitle}`}
             placeholderTextColor={colors.textDim}
             style={styles.composerInput}
             multiline

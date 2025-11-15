@@ -5,10 +5,16 @@ import { getItem, setItem } from '@/lib/storage';
 
 export default function IndexGate() {
   const router = useRouter();
+  const forceOnboarding = process.env.EXPO_PUBLIC_FORCE_ONBOARDING === 'true';
 
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
+        if (forceOnboarding) {
+          try { await setItem('hasOnboarded', 'false'); } catch {}
+          router.replace('/onboarding');
+          return;
+        }
         const value = await getItem('hasOnboarded');
         if (value === 'true') {
           router.replace('/(tabs)');
@@ -21,7 +27,7 @@ export default function IndexGate() {
       }
     };
     checkOnboarding();
-  }, [router]);
+  }, [router, forceOnboarding]);
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f1021' }}>

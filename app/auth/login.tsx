@@ -29,7 +29,15 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async (idToken: string) => {
     try {
       setLoading(true);
-      await googleSignIn(idToken);
+      const res = await googleSignIn(idToken);
+      try {
+        // Cache display name for fallback UI
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const storage = require('../../lib/storage');
+        if (res?.user?.displayName && storage?.setItem) {
+          await storage.setItem('lastUserName', res.user.displayName);
+        }
+      } catch {}
       Alert.alert('Success', 'Logged in with Google');
       router.back();
     } catch (e: any) {

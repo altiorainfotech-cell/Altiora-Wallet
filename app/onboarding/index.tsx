@@ -140,10 +140,17 @@ export default function OnboardingScreen() {
   const handleGoogleSignIn = async (idToken: string) => {
     try {
       setLoading(true);
-      await googleSignIn(idToken);
+      const res = await googleSignIn(idToken);
+      try {
+        if ((res as any)?.user?.displayName) {
+          await setItem('lastUserName', (res as any).user.displayName);
+        }
+      } catch {}
       await setItem('hasOnboarded', 'true');
-      Alert.alert('Success', 'Signed in with Google');
+      // Navigate first to avoid being stuck on onboarding due to alerts or reloads
       router.replace('/(tabs)');
+      // Non-blocking success note
+      Alert.alert('Success', 'Signed in with Google');
     } catch (e: any) {
       Alert.alert('Google Sign-In failed', e?.message || 'Please try again');
     } finally {
