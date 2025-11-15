@@ -10,6 +10,8 @@ import { authRouter } from './routes/auth';
 import { meRouter } from './routes/me';
 import { walletsRouter } from './routes/wallets';
 import { watchlistRouter } from './routes/watchlist';
+import walletOperationsRouter from './routes/wallet-operations';
+import { transactionsRouter } from './routes/transactions';
 
 const logger = pino({
   transport: { target: 'pino-pretty', options: { colorize: true } },
@@ -32,6 +34,8 @@ app.use(env.API_PREFIX + '/auth', authRouter);
 app.use(env.API_PREFIX, meRouter);
 app.use(env.API_PREFIX, walletsRouter);
 app.use(env.API_PREFIX, watchlistRouter);
+app.use(env.API_PREFIX + '/wallet-operations', walletOperationsRouter);
+app.use(env.API_PREFIX, transactionsRouter);
 // Prices and portfolio
 import { pricesRouter } from './routes/prices';
 import { portfolioRouter } from './routes/portfolio';

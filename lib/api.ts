@@ -280,3 +280,123 @@ export async function deleteChatThread(threadId: string) {
   if (!res.ok) throw new Error('Failed to delete chat thread');
   return res.json();
 }
+
+// Wallet Operations APIs
+export async function sendTransaction(params: {
+  walletAddress: string;
+  toAddress: string;
+  amount: number;
+  tokenId?: string;
+  chain?: string;
+}) {
+  const res = await request('/wallet-operations/send', {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Send transaction failed' }));
+    throw new Error(error.error || 'Send transaction failed');
+  }
+  return res.json();
+}
+
+export async function receiveTransaction(params: {
+  walletAddress: string;
+  fromAddress?: string;
+  amount: number;
+  tokenId?: string;
+  chain?: string;
+}) {
+  const res = await request('/wallet-operations/receive', {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Receive transaction failed' }));
+    throw new Error(error.error || 'Receive transaction failed');
+  }
+  return res.json();
+}
+
+export async function swapTokens(params: {
+  walletAddress: string;
+  fromTokenId: string;
+  toTokenId: string;
+  fromAmount: number;
+  toAmount: number;
+  chain?: string;
+}) {
+  const res = await request('/wallet-operations/swap', {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Swap transaction failed' }));
+    throw new Error(error.error || 'Swap transaction failed');
+  }
+  return res.json();
+}
+
+export async function buyToken(params: {
+  walletAddress: string;
+  tokenId?: string;
+  cryptoAmount: number;
+  fiatAmount: number;
+  fiatCurrency?: string;
+  paymentMethod?: string;
+  chain?: string;
+}) {
+  const res = await request('/wallet-operations/buy', {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Purchase transaction failed' }));
+    throw new Error(error.error || 'Purchase transaction failed');
+  }
+  return res.json();
+}
+
+export async function getWalletBalance(walletAddress: string) {
+  const res = await request(`/wallet-operations/balance/${walletAddress}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to fetch wallet balance' }));
+    throw new Error(error.error || 'Failed to fetch wallet balance');
+  }
+  return res.json();
+}
+
+// Transaction APIs (existing endpoint compatibility)
+export async function getTransactions(address: string, opts?: { limit?: number; offset?: number; status?: string; category?: string }) {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  if (opts?.offset) params.set('offset', String(opts.offset));
+  if (opts?.status) params.set('status', opts.status);
+  if (opts?.category) params.set('category', opts.category);
+  const q = params.toString() ? `?${params}` : '';
+  const res = await request(`/transactions/${address}${q}`);
+  if (!res.ok) throw new Error('Failed to fetch transactions');
+  return res.json();
+}
+
+export async function upsertTransaction(tx: {
+  hash: string;
+  walletAddress: string;
+  chain: string;
+  from: string;
+  to: string;
+  value: number;
+  fee?: number;
+  method?: string;
+  status: string;
+  category: string;
+  metadata?: any;
+  timestamp: string;
+}) {
+  const res = await request('/transactions', {
+    method: 'POST',
+    body: JSON.stringify(tx)
+  });
+  if (!res.ok) throw new Error('Failed to upsert transaction');
+  return res.json();
+}

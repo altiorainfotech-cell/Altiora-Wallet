@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Switch, Alert } from "react-native";
+import React, { useMemo, useState, useEffect } from "react";
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -7,25 +7,90 @@ import { useRouter } from "expo-router";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 import { isAuthed, logout } from "../../lib/api";
+import {
+  getBiometricInfo,
+  promptEnableBiometric,
+  disableBiometric,
+  isBiometricEnabled,
+} from "../../lib/biometric";
 
 export default function Settings() {
   const router = useRouter();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricName, setBiometricName] = useState("Biometric");
+  const [loadingBiometric, setLoadingBiometric] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const authed = useMemo(() => isAuthed(), []);
+
+  useEffect(() => {
+    loadBiometricStatus();
+  }, []);
+
+  const loadBiometricStatus = async () => {
+    setLoadingBiometric(true);
+    try {
+      const info = await getBiometricInfo();
+      setBiometricSupported(info.supported && info.enrolled);
+      setBiometricEnabled(info.enabled);
+      setBiometricName(info.name);
+    } catch (error) {
+      console.error('Error loading biometric status:', error);
+    } finally {
+      setLoadingBiometric(false);
+    }
+  };
 
   const handleBackup = () => {
     router.push("/(modals)/recovery-phrase2");
   };
 
-  const handleBiometricToggle = (value: boolean) => {
-    setBiometricEnabled(value);
-    Alert.alert(
-      value ? "Biometric Enabled" : "Biometric Disabled",
-      value
-        ? "Your wallet is now protected with biometric authentication"
-        : "Biometric authentication has been disabled"
-    );
+  const handleBiometricToggle = async (value: boolean) => {
+    if (!biometricSupported) {
+      Alert.alert(
+        "Not Available",
+        "Biometric authentication is not available on this device. Make sure Face ID or fingerprint is set up in your device settings."
+      );
+      return;
+    }
+
+    if (value) {
+      // Enable biometric
+      const result = await promptEnableBiometric();
+      if (result.enabled) {
+        setBiometricEnabled(true);
+        Alert.alert(
+          `${biometricName} Enabled`,
+          `Your wallet is now protected with ${biometricName}. You'll need to authenticate when opening the app.`
+        );
+      } else {
+        Alert.alert(
+          "Authentication Failed",
+          result.error || "Could not enable biometric authentication"
+        );
+      }
+    } else {
+      // Disable biometric
+      Alert.alert(
+        `Disable ${biometricName}?`,
+        `You will no longer be able to unlock your wallet with ${biometricName}. You can re-enable this anytime.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Disable",
+            style: "destructive",
+            onPress: async () => {
+              await disableBiometric();
+              setBiometricEnabled(false);
+              Alert.alert(
+                "Disabled",
+                `${biometricName} authentication has been disabled`
+              );
+            }
+          }
+        ]
+      );
+    }
   };
 
   const handleNotificationToggle = (value: boolean) => {
@@ -143,17 +208,28 @@ export default function Settings() {
                 <View style={[styles.iconContainer, { backgroundColor: "#4ECDC4" + "20" }]}>
                   <Ionicons name="finger-print" size={20} color="#4ECDC4" />
                 </View>
-                <View>
-                  <Text style={styles.itemTitle}>Biometric Lock</Text>
-                  <Text style={styles.itemDesc}>Use fingerprint/face ID</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemTitle}>
+                    {biometricSupported ? biometricName : "Biometric Lock"}
+                  </Text>
+                  <Text style={styles.itemDesc}>
+                    {biometricSupported
+                      ? `Use ${biometricName} to unlock`
+                      : "Not available on this device"}
+                  </Text>
                 </View>
               </View>
-              <Switch
-                value={biometricEnabled}
-                onValueChange={handleBiometricToggle}
-                trackColor={{ false: colors.border, true: colors.primary + "80" }}
-                thumbColor={biometricEnabled ? colors.primary : colors.textDim}
-              />
+              {loadingBiometric ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  disabled={!biometricSupported}
+                  trackColor={{ false: colors.border, true: colors.primary + "80" }}
+                  thumbColor={biometricEnabled ? colors.primary : colors.textDim}
+                />
+              )}
             </View>
 
             <TouchableOpacity style={styles.item} onPress={handleChangePassword}>

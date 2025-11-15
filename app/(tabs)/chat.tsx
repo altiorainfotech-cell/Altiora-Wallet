@@ -88,14 +88,14 @@ export default function ChatListScreen() {
         ? [{ id: 'telegram', name: 'Telegram', last: 'Connected', time: 'now', pinned: true } as ChatPreview, ...chatPreviews]
         : chatPreviews;
       
-      setChats(base.map(c => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 })));
+      setChats(base.map((c: ChatPreview) => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 })));
     } catch (error) {
       console.error('Failed to load chat threads:', error);
       // Fallback to AI Assistant only
       const base = telegramEnabled
         ? [{ id: 'telegram', name: 'Telegram', last: 'Connected', time: 'now', pinned: true } as ChatPreview, SAMPLE_CHATS[0]]
         : [SAMPLE_CHATS[0]];
-      setChats(base.map(c => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 })));
+      setChats(base.map((c: ChatPreview) => ({ ...c, pinned: !!c.pinned, muted: false, archived: false, unread: c.unread || 0 })));
     } finally {
       setLoading(false);
     }

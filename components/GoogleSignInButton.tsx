@@ -8,6 +8,9 @@ import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react
 
 WebBrowser.maybeCompleteAuthSession();
 
+// Global flag to ensure redirect URI is logged only once across all component instances
+let hasLoggedRedirectGlobal = false;
+
 interface GoogleSignInButtonProps {
   onSuccess: (idToken: string) => void;
   onError?: (error: string) => void;
@@ -27,13 +30,18 @@ export default function GoogleSignInButton({ onSuccess, onError, mode = 'signin'
   // The URIs you've already added to Google Console will work for web testing
   const redirectUri = useMemo(() => {
     // Web: generate based on current origin; Native: use custom scheme
-    if (Platform.OS === 'web') {
-      return AuthSession.makeRedirectUri();
-    }
-    return AuthSession.makeRedirectUri({ scheme: 'walletui' });
-  }, []);
+    const uri = Platform.OS === 'web'
+      ? AuthSession.makeRedirectUri()
+      : AuthSession.makeRedirectUri({ scheme: 'walletui' });
 
-  console.log('Google OAuth Redirect URI:', redirectUri);
+    // Log redirect URI only once globally during development
+    if (__DEV__ && !hasLoggedRedirectGlobal) {
+      console.log('Google OAuth Redirect URI:', uri);
+      hasLoggedRedirectGlobal = true;
+    }
+
+    return uri;
+  }, []);
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {

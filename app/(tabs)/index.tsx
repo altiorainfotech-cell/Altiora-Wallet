@@ -7,13 +7,14 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, TextInput,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { EthereumIcon } from "../../components/icons";
+import MiniChart from "../../components/MiniChart";
 import Sheet from "../../components/Sheet";
 import PrimaryButton from "../../components/PrimaryButton";
 import { useWalletUi } from "../../context/WalletUiContext";
 import { useUser } from "../../hooks/useUser";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
-import { getPortfolioAnalytics, getPnL, getPriceAlerts } from "../../lib/api";
+import { getPortfolioAnalytics, getPnL, getPriceAlerts, getPriceHistory } from "../../lib/api";
 
 export default function Home() {
   const router = useRouter();
@@ -53,8 +54,25 @@ export default function Home() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [verifyPhrase, setVerifyPhrase] = useState("");
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
+  const [portfolioChartData, setPortfolioChartData] = useState<number[]>([]);
 
   const active = accounts[activeIndex] || accounts[0];
+
+  // Fetch portfolio chart data (ETH price history as proxy for portfolio)
+  useEffect(() => {
+    const fetchPortfolioChart = async () => {
+      try {
+        const { points } = await getPriceHistory('ETH', 30, 'daily');
+        if (points && points.length > 0) {
+          const prices = points.map((p: any) => p.usd);
+          setPortfolioChartData(prices);
+        }
+      } catch (error) {
+        console.log('Failed to fetch portfolio chart data:', error);
+      }
+    };
+    fetchPortfolioChart();
+  }, []);
 
   // Use images from assets/nft for NFT thumbnails
   const nftAssetImages = useMemo(() => [
@@ -287,7 +305,20 @@ export default function Home() {
                   <Ionicons name="trending-up" size={20} color={colors.success} />
                   <Text style={styles.analyticsTitle}>Portfolio Performance</Text>
                 </View>
-                <Text style={styles.analyticsValue}>+12.5%</Text>
+                {portfolioChartData.length > 0 && (
+                  <View style={{ marginVertical: spacing.sm }}>
+                    <MiniChart
+                      data={portfolioChartData}
+                      width={120}
+                      height={40}
+                      color={colors.success}
+                      strokeWidth={1.5}
+                    />
+                  </View>
+                )}
+                <Text style={styles.analyticsValue}>
+                  {portfolioChange24h >= 0 ? '+' : ''}{portfolioChange24h.toFixed(2)}%
+                </Text>
                 <Text style={styles.analyticsSubtext}>30-day return</Text>
               </LinearGradient>
             </TouchableOpacity>

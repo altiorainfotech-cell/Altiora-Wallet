@@ -16,12 +16,10 @@ export function useUser() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchUser = async () => {
-    console.log('useUser: Fetching user data...');
     try {
       setLoading(true);
       setError(null);
       const data = await getMe();
-      console.log('useUser: User data received:', JSON.stringify(data, null, 2));
       setUser(data.user);
       try {
         if (data?.user?.displayName) {
@@ -29,10 +27,8 @@ export function useUser() {
         }
       } catch {}
     } catch (err: any) {
-      console.error('useUser: Failed to fetch user - Full error:', err);
-      console.error('useUser: Error message:', err.message);
-      console.error('useUser: Error stack:', err.stack);
-      // Fallback: use cached display name or default temporary name
+      // Silent handling - expected when not authenticated
+      // Use cached display name or default temporary name as fallback
       try {
         const cached = await getItem('lastUserName');
         const fallbackName = cached || process.env.EXPO_PUBLIC_FALLBACK_USER_NAME || 'Altiora Infotech';

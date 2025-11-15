@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import PrimaryButton from "../../components/PrimaryButton";
 import { useWalletUi } from "../../context/WalletUiContext";
+import { buyToken, isAuthed } from "../../lib/api";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 
@@ -21,16 +22,63 @@ export default function BuyModal() {
   const net = networks[networkIndex];
   const token = tokens.find(t => t.id === selectedToken) || tokens[0];
 
-  const handleGetQuotes = () => {
+  const handleGetQuotes = async () => {
+    const fiatAmt = parseFloat(amount.replace(/,/g, ''));
+
+    if (!fiatAmt || fiatAmt <= 0) {
+      Alert.alert("Error", "Please enter a valid amount");
+      return;
+    }
+
+    if (fiatAmt < 10) {
+      Alert.alert("Minimum Purchase", "Minimum purchase amount is $10");
+      return;
+    }
+
+    // Calculate crypto amount based on token price
+    const tokenPrice = parseFloat(token.price);
+    const cryptoAmt = fiatAmt / tokenPrice;
+    const processingFee = fiatAmt * 0.015;
+    const totalFiat = fiatAmt + processingFee;
+
     Alert.alert(
-      "Get Quotes",
-      "This will fetch quotes from various payment providers",
+      "Confirm Purchase",
+      `Buy ${cryptoAmt.toFixed(6)} ${token.symbol} for $${totalFiat.toFixed(2)}?\n\nAmount: $${fiatAmt}\nFee (1.5%): $${processingFee.toFixed(2)}\nTotal: $${totalFiat.toFixed(2)}`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Continue",
-          onPress: () => {
-            Alert.alert("Success", "Quotes fetched successfully");
+          text: "Buy Now",
+          onPress: async () => {
+            try {
+              // Call API to record purchase transaction
+              if (isAuthed()) {
+                const result = await buyToken({
+                  walletAddress: active.address,
+                  tokenId: selectedToken,
+                  cryptoAmount: cryptoAmt,
+                  fiatAmount: fiatAmt,
+                  fiatCurrency: selectedCurrency,
+                  paymentMethod: 'card',
+                  chain: net.id
+                });
+                console.log('Buy transaction recorded:', result);
+              } else {
+                console.log('Not authenticated, purchase simulated locally');
+                // For demo purposes, still show success even if not authenticated
+              }
+
+              Alert.alert(
+                "Purchase Successful!",
+                `You bought ${cryptoAmt.toFixed(6)} ${token.symbol} for $${totalFiat.toFixed(2)}!\n\nThe crypto will appear in your wallet shortly.`,
+                [
+                  { text: "View Transactions", onPress: () => router.push('/(tabs)/transactions') },
+                  { text: "Done", onPress: () => router.back() }
+                ]
+              );
+            } catch (error: any) {
+              console.error('Buy error:', error);
+              Alert.alert("Failed", error.message || "Purchase failed. Please try again.");
+            }
           }
         }
       ]

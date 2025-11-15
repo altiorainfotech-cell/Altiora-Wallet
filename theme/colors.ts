@@ -1,9 +1,11 @@
 const colors = {
   bg: "#0F1115",
+  background: "#0F1115", // Alias for bg
   card: "#171A21",
   text: "#E6EAF2",
   textDim: "#A8B0BF",
   primary: "#6AA3FF",
+  secondary: "#4ECDC4", // Secondary color for gradients
   border: "#252B39",
   chip: "#242A38",
   success: "#4ECDC4",

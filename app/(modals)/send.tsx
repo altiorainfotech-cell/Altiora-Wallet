@@ -6,6 +6,7 @@ import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, Tou
 import { SafeAreaView } from "react-native-safe-area-context";
 import PrimaryButton from "../../components/PrimaryButton";
 import { useWalletUi } from "../../context/WalletUiContext";
+import { sendTransaction, isAuthed } from "../../lib/api";
 import colors from "../../theme/colors";
 import spacing from "../../theme/spacing";
 
@@ -18,13 +19,21 @@ export default function SendModal() {
   const active = accounts[activeIndex];
   const net = networks[networkIndex];
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!to.trim()) {
       Alert.alert("Error", "Please enter a recipient address");
       return;
     }
     if (!amount.trim() || parseFloat(amount) <= 0) {
       Alert.alert("Error", "Please enter a valid amount");
+      return;
+    }
+
+    const amtNum = parseFloat(amount);
+    const currentBalance = parseFloat(active?.balance || "0");
+
+    if (amtNum > currentBalance) {
+      Alert.alert("Insufficient Balance", `You only have ${currentBalance} ${net.symbol} available.`);
       return;
     }
 
@@ -35,9 +44,35 @@ export default function SendModal() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Confirm",
-          onPress: () => {
-            Alert.alert("Success", "Transaction sent successfully");
-            router.back();
+          onPress: async () => {
+            try {
+              // Call API to record transaction
+              if (isAuthed()) {
+                const result = await sendTransaction({
+                  walletAddress: active.address,
+                  toAddress: to,
+                  amount: amtNum,
+                  tokenId: 'eth',
+                  chain: net.id
+                });
+                console.log('Transaction recorded:', result);
+              } else {
+                console.log('Not authenticated, transaction simulated locally');
+                // For demo purposes, still show success even if not authenticated
+              }
+
+              Alert.alert(
+                "Success",
+                `${amount} ${net.symbol} sent successfully!`,
+                [
+                  { text: "View Transactions", onPress: () => router.push('/(tabs)/transactions') },
+                  { text: "Done", onPress: () => router.back() }
+                ]
+              );
+            } catch (error: any) {
+              console.error('Send error:', error);
+              Alert.alert("Failed", error.message || "Transaction failed. Please try again.");
+            }
           }
         }
       ]

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { addWatchlist as apiAddWatchlist, login as apiLogin, removeWatchlist as apiRemoveWatchlist, createWallet, getWallets, getWatchlist, isAuthed, registerPushToken } from "../lib/api";
+import { addWatchlist as apiAddWatchlist, login as apiLogin, removeWatchlist as apiRemoveWatchlist, createWallet, getWallets, getWatchlist, isAuthed, registerPushToken, getPrices } from "../lib/api";
 import { getExpoPushToken } from "../lib/push";
 
 export type UiAccount = { id: string; label: string; address: string; balance: string };
@@ -67,7 +67,7 @@ const Ctx = createContext<WalletUiContextValue | undefined>(undefined);
 
 export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [accounts, setAccounts] = useState<UiAccount[]>([
-    { id: "acc-0", label: "Account 1", address: "0x12A4...9F3C", balance: "0.0000" },
+    { id: "acc-0", label: "Account 1", address: "0x12A4B5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F9F3C", balance: "2.5000" },
   ]);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -78,7 +78,8 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
   ]);
   const [networkIndex, setNetworkIndex] = useState(0);
 
-  const [tokens] = useState<UiToken[]>([
+  // Initial token configuration with static balances
+  const initialTokens: UiToken[] = [
     {
       id: "eth",
       name: "Ethereum",
@@ -260,7 +261,10 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       price: "0.083",
       color: "#C2A633"
     }
-  ]);
+  ];
+
+  const [tokens, setTokens] = useState<UiToken[]>(initialTokens);
+  const [previousPrices, setPreviousPrices] = useState<Record<string, number>>({});
 
   const [nfts] = useState<UiNft[]>([
     { id: "nft-azuki-1", name: "Azuki #4521", collection: "Azuki", color: "#C14AFF", usdValue: "2,350.00" },
@@ -352,6 +356,59 @@ export const WalletUiProvider: React.FC<React.PropsWithChildren> = ({ children }
       return curr;
     });
   }, []);
+
+  // Fetch live prices from CoinGecko API
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const symbols = tokens.map(t => t.symbol);
+        const { prices } = await getPrices(symbols);
+
+        if (!prices) return;
+
+        // Update tokens with live prices
+        setTokens(prevTokens => prevTokens.map(token => {
+          const priceData = prices[token.symbol.toUpperCase()];
+          if (!priceData) return token;
+
+          const newPrice = priceData.usd;
+          const oldPrice = previousPrices[token.symbol] || parseFloat(token.price);
+
+          // Calculate 24h change percentage
+          const change24h = oldPrice > 0 ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
+
+          // Calculate new USD value based on balance and new price
+          const balance = parseFloat(token.balance);
+          const usdValue = (balance * newPrice).toFixed(2);
+
+          return {
+            ...token,
+            price: newPrice.toFixed(token.symbol === 'ETH' || token.symbol === 'BTC' ? 2 :
+                                   newPrice < 1 ? 4 : 2),
+            usdValue,
+            change24h: parseFloat(change24h.toFixed(2))
+          };
+        }));
+
+        // Store current prices for next comparison
+        const newPreviousPrices: Record<string, number> = {};
+        Object.keys(prices).forEach(symbol => {
+          newPreviousPrices[symbol] = prices[symbol].usd;
+        });
+        setPreviousPrices(newPreviousPrices);
+      } catch (error) {
+        console.log('Failed to fetch live prices, using static prices:', error);
+      }
+    };
+
+    // Fetch immediately on mount
+    fetchPrices();
+
+    // Then fetch every 30 seconds
+    const interval = setInterval(fetchPrices, 30000);
+
+    return () => clearInterval(interval);
+  }, [previousPrices]); // Re-fetch when previous prices change
 
   // Watchlist state and functions
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
